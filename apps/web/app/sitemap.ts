@@ -6,6 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const docs = [
     "/docs",
     "/docs/getting-started",
+    "/docs/examples",
     "/docs/concepts/safe-writes",
     "/docs/providers",
     "/docs/providers/azure-devops",

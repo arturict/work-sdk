@@ -1,0 +1,19 @@
+{
+  "name": "@work-sdk/example-approval-cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "start:env": "node --env-file=.env src/index.mjs",
+    "build": "node --check src/index.mjs && node --check src/provider.mjs && node --check src/workflow.mjs",
+    "check": "node --check src/index.mjs && node --check src/provider.mjs && node --check src/workflow.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "work-sdk": "workspace:*"
+  },
+  "engines": {
+    "node": ">=20.6"
+  }
+}

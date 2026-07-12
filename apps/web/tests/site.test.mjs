@@ -50,6 +50,7 @@ test("company marks come from locally cached SVGL assets", async () => {
 test("documentation has guided learning, provider, reference, and testing routes", async () => {
   const routes = [
     "app/docs/getting-started/page.tsx",
+    "app/docs/examples/page.tsx",
     "app/docs/concepts/safe-writes/page.tsx",
     "app/docs/providers/page.tsx",
     "app/docs/providers/azure-devops/page.tsx",
@@ -62,4 +63,5 @@ test("documentation has guided learning, provider, reference, and testing routes
   const sitemap = await read("app/sitemap.ts");
   assert.match(sitemap, /providers\/azure-devops/);
   assert.match(sitemap, /guides\/testing/);
+  assert.match(sitemap, /docs\/examples/);
 });

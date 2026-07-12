@@ -1,0 +1,7 @@
+{
+  "id": "deploy_example_20260712_001",
+  "status": "succeeded",
+  "environment": "staging",
+  "commit": "4cae7d53fb5d2da17ec7a4f342e28c31e95fdcb2",
+  "url": "https://deployments.example.com/runs/deploy_example_20260712_001"
+}

@@ -47,6 +47,7 @@ export default function DocsPage() {
           <Link className="docs-card" href="/docs/providers/azure-devops"><span>02</span><h3>Add Azure DevOps</h3><p>Configure Entra or PAT auth, custom processes, WIQL search, priorities, and parent links.</p></Link>
           <Link className="docs-card" href="/docs/guides/agents"><span>03</span><h3>Give it to an agent</h3><p>Design narrow tools, approval gates, stable idempotency keys, and conflict recovery.</p></Link>
           <Link className="docs-card" href="/docs/reference/client"><span>04</span><h3>Look up the API</h3><p>Review every client method, normalized type, capability, and commit receipt.</p></Link>
+          <Link className="docs-card" href="/docs/examples"><span>05</span><h3>Run a real example app</h3><p>Try an approval CLI or signed webhook bot locally with safe fake credentials.</p></Link>
         </div>
       </section>
 

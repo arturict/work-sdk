@@ -44,6 +44,18 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  examples/approval-cli:
+    dependencies:
+      work-sdk:
+        specifier: workspace:*
+        version: link:../../packages/work-sdk
+
+  examples/webhook-bot:
+    dependencies:
+      work-sdk:
+        specifier: workspace:*
+        version: link:../../packages/work-sdk
+
   packages/work-sdk:
     devDependencies:
       '@arethetypeswrong/cli':

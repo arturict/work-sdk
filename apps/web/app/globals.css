@@ -232,6 +232,7 @@ tbody th { font-weight: 570; }
 .docs-content .docs-card { min-height: 178px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); padding: 20px; text-decoration: none; transition: border-color .18s ease, transform .18s ease; }
 .docs-content .docs-card:hover { border-color: var(--primary); transform: translateY(-2px); }
 .docs-card > span { color: var(--primary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 9px; }
+.docs-example-label { margin: 0 0 10px; color: var(--primary) !important; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 9px !important; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 .docs-card h3 { margin: 34px 0 8px; font-size: 15px; }
 .docs-card p { margin: 0; font-size: 12px; line-height: 1.6; }
 .docs-steps { margin: 0; padding: 0; list-style: none; counter-reset: docs-step; }

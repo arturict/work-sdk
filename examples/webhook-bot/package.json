@@ -1,0 +1,21 @@
+{
+  "name": "@work-sdk/example-webhook-bot",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "start:env": "node --env-file=.env src/server.mjs",
+    "send-demo": "node src/send-demo.mjs",
+    "send-demo:env": "node --env-file=.env src/send-demo.mjs",
+    "build": "node --check src/server.mjs && node --check src/processor.mjs && node --check src/provider.mjs",
+    "check": "node --check src/server.mjs && node --check src/processor.mjs && node --check src/provider.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "work-sdk": "workspace:*"
+  },
+  "engines": {
+    "node": ">=20.6"
+  }
+}

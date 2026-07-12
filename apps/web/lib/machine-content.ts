@@ -112,6 +112,7 @@ export const llmsIndex = `# Work SDK
 
 - [Documentation](${site.url}/docs): guided documentation index
 - [Getting started](${site.url}/docs/getting-started): first read and safe write
+- [Example apps](${site.url}/docs/examples): runnable approval CLI and signed webhook bot with fake credentials
 - [Safe writes](${site.url}/docs/concepts/safe-writes): integrity, concurrency, warnings, and idempotency
 - [Providers](${site.url}/docs/providers): capability and semantic comparison
 - [Azure DevOps](${site.url}/docs/providers/azure-devops): auth, custom processes, WIQL, and JSON Patch

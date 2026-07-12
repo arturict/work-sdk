@@ -99,6 +99,7 @@ Credentials stay inside adapters and are never copied into prepared changes.
 
 - [Overview](https://work-sdk.vercel.app/docs)
 - [Getting started](https://work-sdk.vercel.app/docs/getting-started)
+- [Runnable example apps](https://work-sdk.vercel.app/docs/examples)
 - [Safe-write protocol](https://work-sdk.vercel.app/docs/concepts/safe-writes)
 - [Provider comparison](https://work-sdk.vercel.app/docs/providers)
 - [Azure DevOps guide](https://work-sdk.vercel.app/docs/providers/azure-devops)
