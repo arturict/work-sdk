@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { CheckIcon, CopyIcon } from "@/components/icons";
 
 const providers = {
@@ -99,7 +100,7 @@ export function Workbench() {
             role="tab"
             type="button"
           >
-            <span className={`provider-dot ${providers[name].key}`} aria-hidden="true" />
+            <BrandLogo brand={providers[name].key} inverse />
             {name}
           </button>
         ))}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { BrandLogo } from "@/components/brand-logo";
 import { ArrowIcon, CheckIcon, LayersIcon, RefreshIcon, ShieldIcon, TerminalIcon } from "@/components/icons";
 import { Workbench } from "@/components/workbench";
 import { site } from "@/lib/site";
@@ -56,7 +57,7 @@ export default function HomePage() {
       <section aria-labelledby="providers-title" className="provider-strip">
         <div className="shell provider-strip-inner">
           <p id="providers-title">One normalized model for</p>
-          <div className="provider-list"><span><i className="provider-dot github" /> GitHub Issues</span><span><i className="provider-dot linear" /> Linear</span><span><i className="provider-dot jira" /> Jira</span></div>
+          <div className="provider-list"><span><BrandLogo brand="github" /> GitHub Issues</span><span><BrandLogo brand="linear" /> Linear</span><span><BrandLogo brand="jira" /> Jira</span></div>
           <p className="provider-note">More adapters welcome</p>
         </div>
       </section>
@@ -114,7 +115,7 @@ export default function HomePage() {
           <div className="table-wrap">
             <table>
               <caption className="sr-only">Work SDK provider capability comparison</caption>
-              <thead><tr><th scope="col">Capability</th><th scope="col">GitHub</th><th scope="col">Linear</th><th scope="col">Jira</th></tr></thead>
+              <thead><tr><th scope="col">Capability</th><th scope="col"><span className="provider-heading"><BrandLogo brand="github" />GitHub</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="linear" />Linear</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="jira" />Jira</span></th></tr></thead>
               <tbody>{capabilityRows.map(([label, ...values]) => <tr key={label}><th scope="row">{label}</th>{values.map((value, index) => <td key={index}>{value ? <span className="table-yes"><CheckIcon /><span className="sr-only">Supported</span></span> : <span className="table-no" aria-label="Limited">—</span>}</td>)}</tr>)}</tbody>
             </table>
           </div>

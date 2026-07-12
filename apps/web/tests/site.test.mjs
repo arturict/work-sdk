@@ -35,3 +35,12 @@ test("interactive controls expose accessible state", async () => {
   assert.match(workbench, /aria-live/);
   assert.match(workbench, /aria-pressed/);
 });
+
+test("company marks come from locally cached SVGL assets", async () => {
+  const logo = await read("components/brand-logo.tsx");
+  const sources = await read("public/brands/SOURCES.md");
+  assert.match(logo, /github-light\.svg/);
+  assert.match(logo, /linear\.svg/);
+  assert.match(logo, /atlassian\.svg/);
+  assert.match(sources, /SVGL registry/);
+});

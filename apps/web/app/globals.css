@@ -82,10 +82,8 @@ svg { display: block; }
 .provider-tabs { display: flex; align-items: center; gap: 5px; border-bottom: 1px solid #2a2f2c; padding: 9px 13px; }
 .provider-tabs button { display: flex; align-items: center; gap: 7px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #8e9690; cursor: pointer; padding: 7px 10px; font-size: 10px; font-weight: 650; }
 .provider-tabs button.active { border-color: #3a413d; background: #202522; color: white; }
-.provider-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; background: #9aa09b; }
-.provider-dot.github { background: #e7ebe8; }
-.provider-dot.linear { background: #9c8cff; }
-.provider-dot.jira { background: #4285f4; }
+.brand-logo { display: block; width: 15px; height: 15px; flex: none; object-fit: contain; }
+.provider-tabs .brand-logo { width: 12px; height: 12px; }
 .workbench-body { display: grid; grid-template-columns: minmax(0, 1.07fr) minmax(260px, .93fr); min-height: 490px; }
 .hero-code { min-width: 0; margin: 0; overflow-x: auto; border-right: 1px solid #2a2f2c; padding: 24px 21px; color: #cdd3cf; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; line-height: 1.85; tab-size: 2; white-space: pre; }
 .change-panel { display: flex; min-width: 0; flex-direction: column; background: #151917; padding: 13px; }
@@ -119,7 +117,7 @@ svg { display: block; }
 .provider-strip-inner > p:first-child { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; text-transform: uppercase; letter-spacing: .07em; }
 .provider-list { display: flex; align-items: center; gap: 34px; color: var(--ink); font-size: 14px; font-weight: 670; }
 .provider-list span { display: flex; align-items: center; gap: 9px; }
-.provider-list .github { background: #202321; }
+.provider-list .brand-logo { width: 18px; height: 18px; }
 .provider-note { justify-self: end; }
 
 .section { padding-block: 116px; }
@@ -167,6 +165,8 @@ table { width: 100%; border-collapse: collapse; background: var(--surface); font
 th, td { border-bottom: 1px solid var(--line); padding: 17px 18px; text-align: center; }
 tr:last-child th, tr:last-child td { border-bottom: 0; }
 thead th { background: var(--surface-raised); color: var(--muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+.provider-heading { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.provider-heading .brand-logo { width: 14px; height: 14px; }
 th:first-child { width: 47%; text-align: left; }
 tbody th { font-weight: 570; }
 .table-yes { display: inline-grid; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: var(--success-soft); color: var(--success); }
