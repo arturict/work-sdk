@@ -1,0 +1,101 @@
+{
+  "name": "work-sdk",
+  "version": "0.1.0",
+  "description": "A type-safe, agent-safe SDK for GitHub Issues, Linear, and Jira.",
+  "keywords": ["issues", "jira", "linear", "github", "agents", "sdk", "typescript"],
+  "license": "MIT",
+  "author": "Work SDK contributors",
+  "homepage": "https://work-sdk.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arturict/work-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/arturict/work-sdk/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "files": ["dist", "README.md", "LICENSE"],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./github": {
+      "import": {
+        "types": "./dist/github.d.ts",
+        "default": "./dist/github.js"
+      },
+      "require": {
+        "types": "./dist/github.d.cts",
+        "default": "./dist/github.cjs"
+      }
+    },
+    "./linear": {
+      "import": {
+        "types": "./dist/linear.d.ts",
+        "default": "./dist/linear.js"
+      },
+      "require": {
+        "types": "./dist/linear.d.cts",
+        "default": "./dist/linear.cjs"
+      }
+    },
+    "./jira": {
+      "import": {
+        "types": "./dist/jira.d.ts",
+        "default": "./dist/jira.js"
+      },
+      "require": {
+        "types": "./dist/jira.d.cts",
+        "default": "./dist/jira.cjs"
+      }
+    },
+    "./testing": {
+      "import": {
+        "types": "./dist/testing.d.ts",
+        "default": "./dist/testing.js"
+      },
+      "require": {
+        "types": "./dist/testing.d.cts",
+        "default": "./dist/testing.cjs"
+      }
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint:package": "publint && attw --pack --ignore-rules no-resolution",
+    "pack:smoke": "node scripts/pack-smoke.mjs",
+    "clean": "rimraf dist coverage",
+    "prepublishOnly": "pnpm check && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@arethetypeswrong/cli": "^0.18.2",
+    "@vitest/coverage-v8": "^3.2.4",
+    "rimraf": "^6.0.1",
+    "publint": "^0.3.12",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": false
+  }
+}

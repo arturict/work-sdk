@@ -1,0 +1,12 @@
+node_modules
+.pnpm-store
+dist
+coverage
+.next
+.vercel
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+npm-debug.log*
+work/

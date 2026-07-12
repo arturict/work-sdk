@@ -1,0 +1,21 @@
+{
+  "name": "work-sdk-monorepo",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "check": "pnpm -r check",
+    "test": "pnpm -r test",
+    "test:coverage": "pnpm --filter work-sdk test:coverage",
+    "dev": "pnpm --filter @work-sdk/web dev",
+    "clean": "pnpm -r clean",
+    "changeset": "changeset",
+    "version-packages": "changeset version"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.7"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
