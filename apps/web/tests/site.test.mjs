@@ -11,6 +11,7 @@ test("homepage states the category and safe-write lifecycle", async () => {
   assert.match(page, /GitHub Issues/);
   assert.match(page, /Linear/);
   assert.match(page, /Jira/);
+  assert.match(page, /Azure DevOps/);
 });
 
 test("all machine-readable discovery routes exist", async () => {
@@ -42,5 +43,23 @@ test("company marks come from locally cached SVGL assets", async () => {
   assert.match(logo, /github-light\.svg/);
   assert.match(logo, /linear\.svg/);
   assert.match(logo, /atlassian\.svg/);
+  assert.match(logo, /azure\.svg/);
   assert.match(sources, /SVGL registry/);
+});
+
+test("documentation has guided learning, provider, reference, and testing routes", async () => {
+  const routes = [
+    "app/docs/getting-started/page.tsx",
+    "app/docs/concepts/safe-writes/page.tsx",
+    "app/docs/providers/page.tsx",
+    "app/docs/providers/azure-devops/page.tsx",
+    "app/docs/reference/client/page.tsx",
+    "app/docs/reference/errors/page.tsx",
+    "app/docs/guides/agents/page.tsx",
+    "app/docs/guides/testing/page.tsx",
+  ];
+  await Promise.all(routes.map(async (route) => assert.match(await read(route), /DocsShell/, route)));
+  const sitemap = await read("app/sitemap.ts");
+  assert.match(sitemap, /providers\/azure-devops/);
+  assert.match(sitemap, /guides\/testing/);
 });

@@ -36,6 +36,16 @@ const providers = {
     after: "Done",
     warning: "Resolved transition 31 for this workflow",
   },
+  "Azure DevOps": {
+    key: "azure-devops",
+    importName: "azureDevOps",
+    credential: 'organization: "acme",\n    project: "Platform",\n    auth: { type: "entra", token: process.env.AZURE_DEVOPS_TOKEN! }',
+    item: "Platform#42",
+    target: "42",
+    before: "Active",
+    after: "Ready for validation",
+    warning: "Will test Azure revision 7 before patching",
+  },
 } as const;
 
 type ProviderName = keyof typeof providers;

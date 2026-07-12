@@ -11,11 +11,11 @@ export const metadata: Metadata = {
 };
 
 const capabilityRows = [
-  ["Create and update", true, true, true],
-  ["Comments", true, true, true],
-  ["Custom states", false, true, true],
-  ["Multiple assignees", true, false, false],
-  ["Optimistic concurrency", true, true, true],
+  ["Create and update", true, true, true, true],
+  ["Comments", true, true, true, true],
+  ["Custom states", false, true, true, true],
+  ["Multiple assignees", true, false, false, false],
+  ["Optimistic concurrency", true, true, true, true],
 ] as const;
 
 export default function HomePage() {
@@ -39,7 +39,7 @@ export default function HomePage() {
           <p className="eyebrow"><span className="pulse" /> The safe write layer for coding agents</p>
           <h1>One work SDK for <span>every tracker.</span></h1>
           <p className="hero-summary">
-            Create, update, comment on, and transition work across GitHub, Linear, and Jira with one typed API — with previews, idempotency, and conflict protection built in.
+            Create, update, comment on, and transition work across GitHub, Linear, Jira, and Azure DevOps with one typed API — with previews, idempotency, and conflict protection built in.
           </p>
           <div className="hero-actions">
             <Link className="button primary" href="/docs">Read the docs <ArrowIcon /></Link>
@@ -57,7 +57,7 @@ export default function HomePage() {
       <section aria-labelledby="providers-title" className="provider-strip">
         <div className="shell provider-strip-inner">
           <p id="providers-title">One normalized model for</p>
-          <div className="provider-list"><span><BrandLogo brand="github" /> GitHub Issues</span><span><BrandLogo brand="linear" /> Linear</span><span><BrandLogo brand="jira" /> Jira</span></div>
+          <div className="provider-list"><span><BrandLogo brand="github" /> GitHub Issues</span><span><BrandLogo brand="linear" /> Linear</span><span><BrandLogo brand="jira" /> Jira</span><span><BrandLogo brand="azure-devops" /> Azure DevOps</span></div>
           <p className="provider-note">More adapters welcome</p>
         </div>
       </section>
@@ -115,7 +115,7 @@ export default function HomePage() {
           <div className="table-wrap">
             <table>
               <caption className="sr-only">Work SDK provider capability comparison</caption>
-              <thead><tr><th scope="col">Capability</th><th scope="col"><span className="provider-heading"><BrandLogo brand="github" />GitHub</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="linear" />Linear</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="jira" />Jira</span></th></tr></thead>
+              <thead><tr><th scope="col">Capability</th><th scope="col"><span className="provider-heading"><BrandLogo brand="github" />GitHub</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="linear" />Linear</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="jira" />Jira</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="azure-devops" />Azure</span></th></tr></thead>
               <tbody>{capabilityRows.map(([label, ...values]) => <tr key={label}><th scope="row">{label}</th>{values.map((value, index) => <td key={index}>{value ? <span className="table-yes"><CheckIcon /><span className="sr-only">Supported</span></span> : <span className="table-no" aria-label="Limited">—</span>}</td>)}</tr>)}</tbody>
             </table>
           </div>

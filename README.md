@@ -1,6 +1,6 @@
 # Work SDK
 
-**One work SDK for every tracker.** Work SDK gives coding agents and TypeScript applications one typed API for GitHub Issues, Linear, and Jira—with previews, idempotency, and conflict protection built in.
+**One work SDK for every tracker.** Work SDK gives coding agents and TypeScript applications one typed API for GitHub Issues, Linear, Jira, and Azure DevOps—with previews, idempotency, and conflict protection built in.
 
 ```bash
 npm install work-sdk
@@ -79,7 +79,33 @@ const adapter = jira({
 });
 ```
 
+### Azure DevOps
+
+```ts
+import { azureDevOps } from "work-sdk/azure-devops";
+
+const adapter = azureDevOps({
+  organization: "acme",
+  project: "Platform",
+  auth: { type: "entra", token: process.env.AZURE_DEVOPS_TOKEN! },
+});
+```
+
+Azure DevOps supports Microsoft Entra and PAT authentication, WIQL search, custom-process state/type maps, priorities, Markdown comments, parent relations, and native JSON Patch revision tests.
+
 Credentials stay inside adapters and are never copied into prepared changes.
+
+## Documentation
+
+- [Overview](https://work-sdk.vercel.app/docs)
+- [Getting started](https://work-sdk.vercel.app/docs/getting-started)
+- [Safe-write protocol](https://work-sdk.vercel.app/docs/concepts/safe-writes)
+- [Provider comparison](https://work-sdk.vercel.app/docs/providers)
+- [Azure DevOps guide](https://work-sdk.vercel.app/docs/providers/azure-devops)
+- [Client API reference](https://work-sdk.vercel.app/docs/reference/client)
+- [Normalized errors](https://work-sdk.vercel.app/docs/reference/errors)
+- [Agent integration](https://work-sdk.vercel.app/docs/guides/agents)
+- [Testing](https://work-sdk.vercel.app/docs/guides/testing)
 
 ## Core API
 

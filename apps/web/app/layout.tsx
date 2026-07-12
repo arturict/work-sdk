@@ -21,6 +21,7 @@ export const metadata: Metadata = {
     "GitHub Issues",
     "Linear",
     "Jira",
+    "Azure DevOps",
     "AI agents",
     "agent tools",
     "issue tracker",

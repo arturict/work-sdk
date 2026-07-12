@@ -1,6 +1,6 @@
 # Work SDK
 
-One typed, agent-safe API for GitHub Issues, Linear, and Jira.
+One typed, agent-safe API for GitHub Issues, Linear, Jira, and Azure DevOps.
 
 ```bash
 npm install work-sdk
@@ -32,8 +32,8 @@ Work SDK makes external writes explicit:
 2. Your application or agent inspects the proposed change and warnings.
 3. `commit` verifies integrity, rejects stale revisions, and records idempotency.
 
-Provider adapters are available from `work-sdk/github`, `work-sdk/linear`, and `work-sdk/jira`. Deterministic fixtures and adapter utilities are available from `work-sdk/testing`.
+Provider adapters are available from `work-sdk/github`, `work-sdk/linear`, `work-sdk/jira`, and `work-sdk/azure-devops`. Deterministic fixtures and adapter utilities are available from `work-sdk/testing`.
 
-Documentation, examples, architecture notes, and contribution guidance live at [github.com/arturict/work-sdk](https://github.com/arturict/work-sdk).
+Start with the [documentation](https://work-sdk.vercel.app/docs), use the [Azure DevOps guide](https://work-sdk.vercel.app/docs/providers/azure-devops) for custom processes, or browse the [source](https://github.com/arturict/work-sdk).
 
 MIT © Work SDK contributors

@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
-import { CopyButton } from "@/components/copy-button";
+import { CodeBlock, DocsCallout, DocsNext, DocsShell } from "@/components/docs-shell";
 
 export const metadata: Metadata = {
   title: "Documentation",
-  description: "Install Work SDK and safely operate GitHub Issues, Linear, and Jira through one typed API.",
+  description: "Learn Work SDK from first install through production-safe agent writes across GitHub, Linear, Jira, and Azure DevOps.",
   alternates: { canonical: "/docs" },
 };
 
-const quickstart = `import { createWorkClient } from "work-sdk";
+const firstWrite = `import { createWorkClient } from "work-sdk";
 import { github } from "work-sdk/github";
 
 const work = createWorkClient({
@@ -31,61 +32,52 @@ const result = await work.commit(change, {
 
 export default function DocsPage() {
   return (
-    <main className="shell docs-layout" id="main-content">
-      <nav aria-label="Documentation" className="docs-sidebar">
-        <p>Start</p><a href="#quickstart">Quickstart</a><a href="#lifecycle">Safe writes</a>
-        <p>Reference</p><a href="#providers">Providers</a><a href="#errors">Errors</a><a href="#capabilities">Capabilities</a>
-      </nav>
-      <article className="docs-content">
-        <p className="breadcrumb">Docs / Overview</p>
-        <h1>Work SDK</h1>
-        <p className="docs-lead">A type-safe, agent-safe interface for work trackers. Read and write GitHub Issues, Linear issues, and Jira work items without spreading provider semantics through your application.</p>
-        <div className="docs-callout"><p>Work SDK is a library, not a hosted service. Credentials stay in your process and requests go directly to your configured provider.</p></div>
+    <DocsShell
+      breadcrumb="Overview"
+      description="One typed interface for reading and safely writing work across GitHub Issues, Linear, Jira Cloud, and Azure DevOps. Start with a provider, then adopt the prepare → inspect → commit protocol where side effects matter."
+      title="Work SDK documentation"
+      toc={[{ id: "choose-a-path", label: "Choose a path" }, { id: "first-write", label: "Your first safe write" }, { id: "mental-model", label: "Mental model" }, { id: "support", label: "Support matrix" }]}
+    >
+      <DocsCallout><p>Work SDK is a local TypeScript library. Credentials stay in your process and requests go directly to the configured tracker.</p></DocsCallout>
 
-        <section id="quickstart">
-          <h2>Quickstart</h2>
-          <p>Install the package with your preferred package manager.</p>
-          <pre><code>npm install work-sdk</code></pre>
-          <h3>Prepare and commit an update</h3>
-          <p>Provider adapters use dedicated entry points, so unused provider code does not enter your bundle.</p>
-          <div style={{ position: "relative" }}><pre><code>{quickstart}</code></pre><div style={{ position: "absolute", right: 10, top: 10 }}><CopyButton text={quickstart} /></div></div>
-        </section>
+      <section id="choose-a-path">
+        <h2>Choose a path</h2>
+        <div className="docs-card-grid">
+          <Link className="docs-card" href="/docs/getting-started"><span>01</span><h3>Build your first integration</h3><p>Install the package, configure a provider, read an item, and commit a safe update.</p></Link>
+          <Link className="docs-card" href="/docs/providers/azure-devops"><span>02</span><h3>Add Azure DevOps</h3><p>Configure Entra or PAT auth, custom processes, WIQL search, priorities, and parent links.</p></Link>
+          <Link className="docs-card" href="/docs/guides/agents"><span>03</span><h3>Give it to an agent</h3><p>Design narrow tools, approval gates, stable idempotency keys, and conflict recovery.</p></Link>
+          <Link className="docs-card" href="/docs/reference/client"><span>04</span><h3>Look up the API</h3><p>Review every client method, normalized type, capability, and commit receipt.</p></Link>
+        </div>
+      </section>
 
-        <section id="lifecycle">
-          <h2>The safe-write lifecycle</h2>
-          <p><code>prepareCreate</code>, <code>prepareUpdate</code>, and <code>prepareComment</code> create serializable, integrity-checked change plans. They contain a human-readable summary, field-level changes, provider warnings, an expected revision, and a fingerprint.</p>
-          <ol><li><strong>Prepare:</strong> validate intent and fetch the current item when needed.</li><li><strong>Inspect:</strong> evaluate <code>changes</code> and <code>warnings</code> in your UI, policy, or approval step.</li><li><strong>Commit:</strong> verify the fingerprint and current revision, then perform the provider write.</li></ol>
-          <p>Supply an <code>idempotencyKey</code> for any externally visible write that may be retried. Repeating a successful key returns the saved result with <code>replayed: true</code>.</p>
-        </section>
+      <section id="first-write">
+        <h2>Your first safe write</h2>
+        <p>Provider adapters are separate subpath exports. Your application gets one normalized client without pulling unused provider code into the bundle.</p>
+        <CodeBlock code="npm install work-sdk" label="Terminal" />
+        <CodeBlock code={firstWrite} label="safe-update.ts" />
+        <p><code>prepareUpdate</code> reads the current item and creates an integrity-protected plan. No provider mutation occurs until <code>commit</code>.</p>
+      </section>
 
-        <section id="providers">
-          <h2>Providers</h2>
-          <h3>GitHub Issues</h3><p>Configure an owner, repository, and token. GitHub state is normalized to open and closed; labels, assignees, and comments use the same core types.</p>
-          <h3>Linear</h3><p>Configure a Linear API key and optional team. Work SDK resolves state names against the team workflow and preserves provider identifiers.</p>
-          <h3>Jira Cloud</h3><p>Configure a base URL, email, and API token. State changes resolve through Jira workflow transitions rather than assuming a universal transition ID.</p>
-        </section>
+      <section id="mental-model">
+        <h2>The mental model</h2>
+        <ol className="docs-steps">
+          <li><strong>Prepare intent.</strong><span>Validate input, read current state, calculate an exact diff, and capture the expected revision.</span></li>
+          <li><strong>Inspect consequences.</strong><span>Evaluate field changes and provider warnings in code, an approval UI, or an agent policy.</span></li>
+          <li><strong>Commit once.</strong><span>Verify the plan fingerprint and revision, then write with a stable idempotency key.</span></li>
+        </ol>
+      </section>
 
-        <section id="errors">
-          <h2>Normalized errors</h2>
-          <p>Every adapter maps provider failures into stable error classes: <code>WorkAuthenticationError</code>, <code>WorkAuthorizationError</code>, <code>WorkNotFoundError</code>, <code>WorkRateLimitError</code>, <code>WorkConflictError</code>, <code>WorkUnsupportedError</code>, and <code>WorkValidationError</code>.</p>
-          <pre><code>{`try {
-  await work.commit(change);
-} catch (error) {
-  if (error instanceof WorkConflictError) {
-    // Re-read the item and prepare a new change.
-  }
-}`}</code></pre>
-        </section>
+      <section id="support">
+        <h2>Provider support</h2>
+        <div className="docs-table-wrap"><table><thead><tr><th>Provider</th><th>Import</th><th>Protocol</th><th>Distinctive behavior</th></tr></thead><tbody>
+          <tr><td>GitHub Issues</td><td><code>work-sdk/github</code></td><td>REST</td><td>Open/closed state reasons, multiple assignees</td></tr>
+          <tr><td>Linear</td><td><code>work-sdk/linear</code></td><td>GraphQL</td><td>Cursor pagination, team workflow resolution</td></tr>
+          <tr><td>Jira Cloud</td><td><code>work-sdk/jira</code></td><td>REST v3</td><td>ADF rich text, workflow transitions</td></tr>
+          <tr><td>Azure DevOps</td><td><code>work-sdk/azure-devops</code></td><td>REST + WIQL</td><td>JSON Patch revisions, custom processes, parent relations</td></tr>
+        </tbody></table></div>
+      </section>
 
-        <section id="capabilities">
-          <h2>Capability discovery</h2>
-          <p>Use <code>work.capabilities</code> before exposing an action to an agent. Capability checks are synchronous and come directly from the configured adapter.</p>
-          <pre><code>{`if (work.capabilities.comments) {
-  tools.push(createCommentTool(work));
-}`}</code></pre>
-        </section>
-      </article>
-      <aside className="docs-toc" aria-label="On this page"><p>On this page</p><a href="#quickstart">Quickstart</a><a href="#lifecycle">Safe writes</a><a href="#providers">Providers</a><a href="#errors">Errors</a><a href="#capabilities">Capabilities</a></aside>
-    </main>
+      <DocsNext href="/docs/getting-started" label="Getting started" description="Install Work SDK and complete the full read-to-write flow." />
+    </DocsShell>
   );
 }

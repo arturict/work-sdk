@@ -1,4 +1,4 @@
-type Brand = "github" | "linear" | "jira";
+type Brand = "github" | "linear" | "jira" | "azure-devops";
 
 const logos = {
   github: {
@@ -7,6 +7,7 @@ const logos = {
   },
   linear: { light: "/brands/linear.svg" },
   jira: { light: "/brands/atlassian.svg" },
+  "azure-devops": { light: "/brands/azure.svg" },
 } as const;
 
 type BrandLogoProps = {

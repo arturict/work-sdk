@@ -14,7 +14,8 @@ application / agent
         |
         +-- GitHub Issues REST
         +-- Linear GraphQL
-        `-- Jira Cloud REST v3
+        +-- Jira Cloud REST v3
+        `-- Azure DevOps REST 7.1 + WIQL
 ```
 
 ## Safe writes
@@ -45,6 +46,7 @@ Version 0.1 publishes one zero-runtime-dependency package with stable subpath ex
 - `work-sdk/github` — GitHub Issues adapter
 - `work-sdk/linear` — Linear adapter
 - `work-sdk/jira` — Jira Cloud adapter
+- `work-sdk/azure-devops` — Azure DevOps Boards adapter
 - `work-sdk/testing` — fixtures and adapter testing utilities
 
 This gives users one installation while keeping provider code tree-shakeable and independently testable. The subpaths can become separate packages in a future major version if ecosystem scale warrants it.

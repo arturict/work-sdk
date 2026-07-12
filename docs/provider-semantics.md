@@ -15,3 +15,13 @@ Linear uses GraphQL, cursor pagination, Markdown descriptions, arbitrary workflo
 Jira is metadata- and workflow-driven. Status changes use available transitions rather than normal issue edits. Descriptions and comments use Atlassian Document Format, so the adapter performs a conservative Markdown-compatible text conversion and retains native payloads on returned objects.
 
 Projects, issue types, editable fields, priorities, and transitions can vary by tenant and user permissions. Capability flags describe the adapter surface; an individual operation may still be rejected by provider metadata or authorization.
+
+## Azure DevOps
+
+Azure Boards is process-driven. State names and work-item types vary across Basic, Agile, Scrum, CMMI, inherited, and custom processes. The adapter therefore separates provider-to-normalized maps (`stateMap`, `workItemTypeMap`) from normalized-to-provider create maps (`workItemTypeByKind`). State writes always use the exact provider state name instead of guessing a tenant transition.
+
+Discovery uses escaped WIQL followed by batch hydration. Pagination cursors represent offsets within a WIQL result window and are opaque to consumers. Azure's WIQL result ordering is not a durable snapshot when items change during a long crawl.
+
+Mutations use JSON Patch. Prepared revisions become an atomic `test /rev` operation, parent changes replace `System.LinkTypes.Hierarchy-Reverse` relations, and important returned fields are verified. Azure priority values 1–4 map to urgent, high, medium, and low.
+
+Microsoft Entra bearer tokens are the recommended production authentication method. PAT authentication is supported for scripts and prototypes but should be narrowly scoped and rotated.

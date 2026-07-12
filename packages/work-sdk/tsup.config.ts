@@ -6,6 +6,7 @@ export default defineConfig({
     github: "src/github.ts",
     linear: "src/linear.ts",
     jira: "src/jira.ts",
+    "azure-devops": "src/azure-devops.ts",
     testing: "src/testing.ts",
   },
   format: ["esm", "cjs"],
