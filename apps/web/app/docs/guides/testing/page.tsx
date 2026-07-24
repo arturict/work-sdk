@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 
 import { CodeBlock, DocsCallout, DocsShell } from "@/components/docs-shell";
+import { createPageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Testing", description: "Test Work SDK clients, agent flows, and custom adapters deterministically.", alternates: { canonical: "/docs/guides/testing" } };
+export const metadata: Metadata = createPageMetadata({
+  title: "Testing Work SDK integrations",
+  description: "Test Work SDK clients, AI agent flows, and custom issue tracker adapters deterministically.",
+  path: "/docs/guides/testing",
+  keywords: ["Work SDK testing", "issue tracker adapter tests", "AI agent integration tests"],
+});
 
 const memory = `import { createWorkClient } from "work-sdk";
 import { memoryWorkAdapter, workItemFixture } from "work-sdk/testing";

@@ -31,6 +31,34 @@ describe("concurrent idempotency", () => {
     expect(adapter.calls.filter((call) => call.operation === "create")).toHaveLength(1);
     expect(results.map((result) => result.replayed).sort()).toEqual([false, true]);
   });
+
+  it("releases the key lock when the first concurrent commit fails", async () => {
+    const { adapter, client } = setup();
+    const change = await client.prepareCreate({ title: "Retry after failure" });
+    const create = adapter.create.bind(adapter);
+    vi.spyOn(adapter, "create")
+      .mockRejectedValueOnce(new Error("transient provider failure"))
+      .mockImplementation(create);
+
+    const results = await Promise.allSettled([
+      client.commit(change, { idempotencyKey: "recoverable-create" }),
+      client.commit(change, { idempotencyKey: "recoverable-create" }),
+    ]);
+
+    expect(results[0]).toMatchObject({
+      status: "rejected",
+      reason: expect.objectContaining({ message: "transient provider failure" }),
+    });
+    expect(results[1]).toMatchObject({
+      status: "fulfilled",
+      value: expect.objectContaining({
+        replayed: false,
+        item: expect.objectContaining({ title: "Retry after failure" }),
+      }),
+    });
+    expect(adapter.create).toHaveBeenCalledTimes(2);
+    expect(adapter.calls.filter((call) => call.operation === "create")).toHaveLength(1);
+  });
 });
 
 const setup = (capabilities?: Partial<WorkCapabilities>) => {
@@ -135,6 +163,19 @@ describe("prepare", () => {
     ]);
   });
 
+  it("forwards abort signals while preparing updates and comments", async () => {
+    const { adapter, client } = setup();
+    const controller = new AbortController();
+
+    await client.prepareUpdate("item-1", { title: "Prepared" }, { signal: controller.signal });
+    await client.prepareComment("item-1", { body: "Prepared comment" }, { signal: controller.signal });
+
+    expect(adapter.calls).toEqual([
+      expect.objectContaining({ operation: "get", id: "item-1", signal: controller.signal }),
+      expect.objectContaining({ operation: "get", id: "item-1", signal: controller.signal }),
+    ]);
+  });
+
   it("rejects empty update objects, ids, and titles", async () => {
     const { adapter, client } = setup();
     await expect(client.prepareUpdate("", { title: "x" })).rejects.toBeInstanceOf(WorkValidationError);
@@ -166,6 +207,20 @@ describe("prepare", () => {
   it("does not warn about one assignee on a single-assignee provider", async () => {
     const { client } = setup({ multipleAssignees: false });
     await expect(client.prepareUpdate("item-1", { assigneeIds: ["ada"] })).resolves.toMatchObject({ warnings: [] });
+  });
+
+  it("prepares an explicit no-op when requested values already match", async () => {
+    const { client } = setup();
+    const change = await client.prepareUpdate("item-1", {
+      title: "Original title",
+      labels: ["bug"],
+      assigneeIds: ["ada"],
+    });
+    expect(change).toMatchObject({
+      changes: [],
+      summary: "No changes for MEM-1",
+      expectedRevision: "1",
+    });
   });
 
   it.each([
@@ -210,6 +265,30 @@ describe("commit", () => {
     ]);
   });
 
+  it("commits a no-op update without calling the mutation adapter", async () => {
+    const { adapter, client } = setup();
+    const change = await client.prepareUpdate("item-1", { title: "Original title" });
+    adapter.clearCalls();
+    const result = await client.commit(change);
+    expect(result.item).toMatchObject({ id: "item-1", revision: "1", title: "Original title" });
+    expect(adapter.calls).toEqual([expect.objectContaining({ operation: "get", id: "item-1" })]);
+  });
+
+  it("passes the abort signal through every comment commit call", async () => {
+    const { adapter, client } = setup();
+    const change = await client.prepareComment("item-1", { body: "Commented" });
+    adapter.clearCalls();
+    const controller = new AbortController();
+
+    await client.commit(change, { signal: controller.signal });
+
+    expect(adapter.calls).toEqual([
+      expect.objectContaining({ operation: "get", id: "item-1", signal: controller.signal }),
+      expect.objectContaining({ operation: "addComment", id: "item-1", signal: controller.signal }),
+      expect.objectContaining({ operation: "get", id: "item-1", signal: controller.signal }),
+    ]);
+  });
+
   it("detects concurrent changes before mutation", async () => {
     const { adapter, client } = setup();
     const change = await client.prepareUpdate("item-1", { title: "Prepared" });
@@ -217,6 +296,20 @@ describe("commit", () => {
     adapter.clearCalls();
     await expect(client.commit(change)).rejects.toBeInstanceOf(WorkConflictError);
     expect(adapter.calls).toEqual([expect.objectContaining({ operation: "get" })]);
+  });
+
+  it("detects a concurrent change before adding a comment", async () => {
+    const { adapter, client } = setup();
+    const change = await client.prepareComment("item-1", { body: "Prepared comment" });
+    await adapter.update("item-1", { title: "Concurrent" }, { expectedRevision: "1" });
+    adapter.clearCalls();
+
+    await expect(client.commit(change)).rejects.toMatchObject({
+      code: "conflict",
+      details: { expected: "1", actual: "2" },
+    });
+    expect(adapter.calls).toEqual([expect.objectContaining({ operation: "get", id: "item-1" })]);
+    expect(adapter.comments.get("item-1")).toBeUndefined();
   });
 
   it("requires warnings to be acknowledged before any mutation", async () => {
@@ -255,6 +348,44 @@ describe("commit", () => {
     const second = await client.commit(change, { idempotencyKey: "operation-1" });
     expect(first.replayed).toBe(false);
     expect(second).toEqual({ ...first, replayed: true });
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it("rejects reusing an idempotency key for a different intent", async () => {
+    const { adapter, client } = setup();
+    await client.commit(await client.prepareCreate({ title: "First" }), { idempotencyKey: "shared-key" });
+    adapter.clearCalls();
+    await expect(
+      client.commit(await client.prepareCreate({ title: "Different" }), { idempotencyKey: "shared-key" }),
+    ).rejects.toBeInstanceOf(WorkConflictError);
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it("fails closed for legacy idempotency records without an intent binding", async () => {
+    const legacy = new Map<string, CommitResult>();
+    const store: IdempotencyStore = {
+      get: (key) => legacy.get(key),
+      set: (key, result) => { legacy.set(key, result); },
+    };
+    const adapter = memoryWorkAdapter();
+    const client = createWorkClient({ adapter, idempotencyStore: store, now: () => NOW });
+    const change = await client.prepareCreate({ title: "Legacy" });
+    legacy.set("memory:legacy-key", {
+      action: "create",
+      item: workItemFixture({ title: "Legacy" }),
+      replayed: false,
+      committedAt: NOW.toISOString(),
+    });
+    await expect(client.commit(change, { idempotencyKey: "legacy-key" })).rejects.toBeInstanceOf(WorkConflictError);
+  });
+
+  it("rejects unknown runtime actions instead of treating them as comments", async () => {
+    const { adapter, client } = setup();
+    const original = await client.prepareCreate({ title: "Base" });
+    const { fingerprint: _ignored, ...base } = original;
+    const unsigned = { ...base, action: "delete" };
+    const malformed = { ...unsigned, fingerprint: fingerprint(unsigned) } as unknown as PreparedWorkChange;
+    await expect(client.commit(malformed)).rejects.toThrow("Unknown prepared action");
     expect(adapter.calls).toHaveLength(0);
   });
 

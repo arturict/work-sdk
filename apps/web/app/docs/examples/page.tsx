@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 
 import { CodeBlock, DocsCallout, DocsNext, DocsShell } from "@/components/docs-shell";
-import { site } from "@/lib/site";
+import { createPageMetadata, site } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Example apps",
-  description: "Run complete Work SDK example applications locally with fake credentials, then connect GitHub, Linear, Jira, or Azure DevOps.",
-  alternates: { canonical: "/docs/examples" },
-};
+export const metadata: Metadata = createPageMetadata({
+  title: "TypeScript example apps",
+  description: "Run complete Work SDK example applications locally with fake credentials, then connect GitHub, GitLab, Linear, Jira, or Azure DevOps.",
+  path: "/docs/examples",
+  keywords: ["Work SDK examples", "TypeScript webhook bot", "AI agent approval CLI"],
+});
 
 const approvalEnv = `WORK_PROVIDER=azure-devops
 WORK_ITEM_ID=42
@@ -31,7 +32,7 @@ export default function ExamplesPage() {
   return (
     <DocsShell
       breadcrumb="Examples"
-      description="Complete Node applications that run without credentials against an in-memory provider. Copy the supplied fake environment file when you are ready to connect a real GitHub, Linear, Jira, or Azure DevOps project."
+      description="Complete Node applications that run without credentials against an in-memory provider. Copy the supplied fake environment file when you are ready to connect a real GitHub, GitLab, Linear, Jira, or Azure DevOps project."
       title="Example applications"
       toc={[{ id: "safety", label: "Safe fake credentials" }, { id: "approval-cli", label: "Approval CLI" }, { id: "webhook-bot", label: "Webhook bot" }, { id: "production", label: "Production changes" }]}
     >
@@ -69,7 +70,7 @@ export default function ExamplesPage() {
       <section id="production">
         <h2>Before production</h2>
         <div className="docs-table-wrap"><table><thead><tr><th>Demo default</th><th>Production replacement</th></tr></thead><tbody>
-          <tr><td>Memory adapter</td><td>Authenticated GitHub, Linear, Jira, or Azure DevOps adapter</td></tr>
+          <tr><td>Memory adapter</td><td>Authenticated GitHub, GitLab, Linear, Jira, or Azure DevOps adapter</td></tr>
           <tr><td>Memory idempotency store</td><td>Transactional database or durable key-value store</td></tr>
           <tr><td>Local fake webhook secret</td><td>Secret-manager value with rotation</td></tr>
           <tr><td>Direct HTTP processing</td><td>Queue, retry policy, reconciliation, and dead-letter handling</td></tr>

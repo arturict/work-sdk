@@ -10,6 +10,14 @@ GitHub does not document general idempotency for issue mutations. Use a durable 
 
 Linear uses GraphQL, cursor pagination, Markdown descriptions, arbitrary workflow states, one primary assignee, and a fixed priority scale: none, urgent, high, medium, low. The adapter maps this scale without guessing.
 
+## GitLab
+
+GitLab Issues has an opened/closed lifecycle, Markdown descriptions and notes, numeric user IDs, and project-scoped issue IIDs. The adapter supports GitLab.com and Self-Managed through REST v4. It maps opened issues to `unstarted`, closed issues to `completed`, GitLab tasks to `task`, and incidents or test cases to `other`.
+
+GitLab creates missing labels as a side effect of issue writes. Work SDK rejects unknown labels by default and requires `allowCreateLabels: true` for that behavior. Multiple assignees are tier-dependent and remain disabled unless `multipleAssignees: true` is configured. Bug, story, epic, and subtask mappings must be explicit through `issueTypeByKind`; the adapter never silently flattens them.
+
+GitLab does not expose an atomic issue revision precondition through the REST issue endpoint. The adapter re-reads and compares an opaque revision immediately before an update, but a small race window remains between that read and the PUT request.
+
 ## Jira Cloud
 
 Jira is metadata- and workflow-driven. Status changes use available transitions rather than normal issue edits. Descriptions and comments use Atlassian Document Format, so the adapter performs a conservative Markdown-compatible text conversion and retains native payloads on returned objects.

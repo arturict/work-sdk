@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CodeBlock, DocsCallout, DocsNext, DocsShell } from "@/components/docs-shell";
+import { createPageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createPageMetadata({
   title: "Documentation",
-  description: "Learn Work SDK from first install through production-safe agent writes across GitHub, Linear, Jira, and Azure DevOps.",
-  alternates: { canonical: "/docs" },
-};
+  description: "Learn Work SDK from first install through production-safe agent writes across GitHub, GitLab, Linear, Jira, and Azure DevOps.",
+  path: "/docs",
+  keywords: ["Work SDK documentation", "TypeScript issue tracker SDK", "AI agent work item API"],
+});
 
 const firstWrite = `import { createWorkClient } from "work-sdk";
 import { github } from "work-sdk/github";
@@ -34,7 +36,7 @@ export default function DocsPage() {
   return (
     <DocsShell
       breadcrumb="Overview"
-      description="One typed interface for reading and safely writing work across GitHub Issues, Linear, Jira Cloud, and Azure DevOps. Start with a provider, then adopt the prepare → inspect → commit protocol where side effects matter."
+      description="One typed interface for reading and safely writing work across GitHub Issues, GitLab, Linear, Jira Cloud, and Azure DevOps. Start with a provider, then adopt the prepare → inspect → commit protocol where side effects matter."
       title="Work SDK documentation"
       toc={[{ id: "choose-a-path", label: "Choose a path" }, { id: "first-write", label: "Your first safe write" }, { id: "mental-model", label: "Mental model" }, { id: "support", label: "Support matrix" }]}
     >
@@ -72,6 +74,7 @@ export default function DocsPage() {
         <h2>Provider support</h2>
         <div className="docs-table-wrap"><table><thead><tr><th>Provider</th><th>Import</th><th>Protocol</th><th>Distinctive behavior</th></tr></thead><tbody>
           <tr><td>GitHub Issues</td><td><code>work-sdk/github</code></td><td>REST</td><td>Open/closed state reasons, multiple assignees</td></tr>
+          <tr><td>GitLab</td><td><code>work-sdk/gitlab</code></td><td>REST v4</td><td>Self-Managed, guarded labels, explicit type maps</td></tr>
           <tr><td>Linear</td><td><code>work-sdk/linear</code></td><td>GraphQL</td><td>Cursor pagination, team workflow resolution</td></tr>
           <tr><td>Jira Cloud</td><td><code>work-sdk/jira</code></td><td>REST v3</td><td>ADF rich text, workflow transitions</td></tr>
           <tr><td>Azure DevOps</td><td><code>work-sdk/azure-devops</code></td><td>REST + WIQL</td><td>JSON Patch revisions, custom processes, parent relations</td></tr>

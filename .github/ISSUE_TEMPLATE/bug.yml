@@ -7,7 +7,7 @@ body:
     id: adapter
     attributes:
       label: Adapter
-      options: [core, github, linear, jira, testing, website]
+      options: [core, github, gitlab, linear, jira, azure-devops, testing, website]
     validations:
       required: true
   - type: input

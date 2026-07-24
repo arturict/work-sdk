@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 
 import { CodeBlock, DocsCallout, DocsNext, DocsShell } from "@/components/docs-shell";
+import { createPageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Client API reference", description: "Reference for WorkClient methods, inputs, outputs, capabilities, and stores.", alternates: { canonical: "/docs/reference/client" } };
+export const metadata: Metadata = createPageMetadata({
+  title: "WorkClient API reference",
+  description: "Reference for WorkClient TypeScript methods, inputs, outputs, provider capabilities, prepared changes, and idempotency stores.",
+  path: "/docs/reference/client",
+  keywords: ["WorkClient API", "Work SDK TypeScript reference", "prepared work changes"],
+});
 
 const createClient = `function createWorkClient(options: {
   adapter: WorkAdapter;

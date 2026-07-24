@@ -7,6 +7,7 @@ export default defineConfig({
     linear: "src/linear.ts",
     jira: "src/jira.ts",
     "azure-devops": "src/azure-devops.ts",
+    gitlab: "src/gitlab.ts",
     testing: "src/testing.ts",
   },
   format: ["esm", "cjs"],

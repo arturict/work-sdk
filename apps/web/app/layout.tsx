@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import { SiteFooter, SiteHeader } from "@/components/site-shell";
-import { site } from "@/lib/site";
+import { discoveryAlternates, site } from "@/lib/site";
 
 import "./globals.css";
 
@@ -16,9 +16,18 @@ export const metadata: Metadata = {
   applicationName: site.name,
   authors: [{ name: "Work SDK contributors" }],
   creator: "Work SDK contributors",
+  publisher: "Work SDK contributors",
+  category: "Developer tools",
+  referrer: "origin-when-cross-origin",
+  formatDetection: {
+    address: false,
+    email: false,
+    telephone: false,
+  },
   keywords: [
     "TypeScript SDK",
     "GitHub Issues",
+    "GitLab",
     "Linear",
     "Jira",
     "Azure DevOps",
@@ -26,19 +35,30 @@ export const metadata: Metadata = {
     "agent tools",
     "issue tracker",
   ],
-  alternates: { canonical: "/" },
+  alternates: { types: discoveryAlternates },
   openGraph: {
     type: "website",
     url: "/",
     title: site.title,
     description: site.description,
     siteName: site.name,
+    locale: "en_US",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Work SDK — agent-safe TypeScript SDK for every work tracker",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: site.title,
     description: site.description,
+    images: ["/opengraph-image"],
   },
+  manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg" },
 };
 

@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 
 import { CodeBlock, DocsCallout, DocsNext, DocsShell } from "@/components/docs-shell";
+import { createPageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Agent integration", description: "Design safe coding-agent tools with Work SDK.", alternates: { canonical: "/docs/guides/agents" } };
+export const metadata: Metadata = createPageMetadata({
+  title: "AI agent integration guide",
+  description: "Design safe coding-agent tools with prepared changes, approval gates, idempotency, and conflict recovery.",
+  path: "/docs/guides/agents",
+  keywords: ["AI agent tools", "coding agent SDK", "human approval workflow"],
+});
 
 const tool = `const prepareUpdateTool = {
   name: "prepare_work_item_update",

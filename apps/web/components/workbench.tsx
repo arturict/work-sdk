@@ -16,6 +16,16 @@ const providers = {
     after: "closed",
     warning: "Mapped ‘done’ to GitHub’s closed state",
   },
+  GitLab: {
+    key: "gitlab",
+    importName: "gitlab",
+    credential: 'project: "acme/platform",\n    token: process.env.GITLAB_TOKEN!',
+    item: "acme/platform#42",
+    target: "42",
+    before: "opened",
+    after: "closed",
+    warning: "Will reject unknown labels before GitLab can create them",
+  },
   Linear: {
     key: "linear",
     importName: "linear",

@@ -10,7 +10,7 @@ export function SiteHeader() {
         <Link aria-label="Work SDK home" className="brand" href="/">
           <LogoMark />
           <span>Work SDK</span>
-          <span className="version-chip">v0.2</span>
+          <span className="version-chip">v0.3</span>
         </Link>
         <div className="nav-links">
           <Link href="/docs">Docs</Link>
@@ -39,6 +39,9 @@ export function SiteFooter() {
         </div>
         <div className="footer-links" aria-label="Project links">
           <Link href="/docs">Documentation</Link>
+          <Link href="/docs/getting-started">Quickstart</Link>
+          <Link href="/docs/examples">Examples</Link>
+          <Link href="/docs/providers">Providers</Link>
           <a href={site.github}>Source</a>
           <a href={site.npm}>npm</a>
           <a href="/llms.txt">llms.txt</a>

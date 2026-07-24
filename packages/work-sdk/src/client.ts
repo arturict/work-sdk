@@ -29,6 +29,25 @@ export interface WorkClient {
   commit(change: PreparedWorkChange, options?: CommitOptions): Promise<CommitResult>;
 }
 
+type StoredCommitResult = CommitResult & {
+  /** Internal request binding persisted alongside idempotent results. */
+  __workSdkIntentFingerprint?: string;
+};
+
+function intentFingerprint(change: PreparedWorkChange): string {
+  return fingerprint({
+    action: change.action,
+    input: change.input,
+    provider: change.provider,
+    targetId: change.targetId,
+  });
+}
+
+function replayResult(result: StoredCommitResult): CommitResult {
+  const { __workSdkIntentFingerprint: _binding, ...clean } = result;
+  return { ...clean, replayed: true };
+}
+
 function changesForUpdate(current: WorkItem, input: UpdateWorkItemInput): WorkChangeField[] {
   const fields: Array<[keyof UpdateWorkItemInput, unknown]> = [
     ["title", current.title],
@@ -126,7 +145,9 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
         current,
         changes,
         warnings: warningsFor(adapter, input),
-        summary: `Update ${current.identifier}: ${changes.map((change) => change.field).join(", ")}`,
+        summary: changes.length === 0
+          ? `No changes for ${current.identifier}`
+          : `Update ${current.identifier}: ${changes.map((change) => change.field).join(", ")}`,
         expectedRevision: current.revision,
       }, now());
     },
@@ -150,6 +171,12 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
     },
 
     async commit(change, commitOptions = {}) {
+      if (!["create", "update", "comment"].includes(change.action)) {
+        throw new WorkValidationError(`Unknown prepared action: ${String(change.action)}`, {
+          provider: adapter.provider,
+          details: { action: change.action },
+        });
+      }
       if (change.provider !== adapter.provider) {
         throw new WorkValidationError(`Prepared change belongs to ${change.provider}, not ${adapter.provider}`);
       }
@@ -164,6 +191,7 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
         });
       }
       const key = commitOptions.idempotencyKey;
+      const requestBinding = intentFingerprint(change);
       let releaseLock = (): void => {};
       if (key !== undefined) {
         assertNonEmpty(key, "idempotencyKey");
@@ -181,8 +209,20 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
 
       try {
         if (key !== undefined) {
-          const previous = await store.get(`${adapter.provider}:${key}`);
-          if (previous) return { ...previous, replayed: true };
+          const previous = await store.get(`${adapter.provider}:${key}`) as StoredCommitResult | undefined;
+          if (previous) {
+            if (previous.__workSdkIntentFingerprint !== requestBinding) {
+              throw new WorkConflictError("Idempotency key was already used for a different prepared change", {
+                provider: adapter.provider,
+                details: {
+                  idempotencyKey: key,
+                  storedBinding: previous.__workSdkIntentFingerprint ?? "legacy-unbound",
+                  receivedBinding: requestBinding,
+                },
+              });
+            }
+            return replayResult(previous);
+          }
         }
 
         let item: WorkItem;
@@ -200,10 +240,12 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
             });
           }
           if (change.action === "update") {
-            item = await adapter.update(targetId, change.input as UpdateWorkItemInput, {
-              ...(change.expectedRevision ? { expectedRevision: change.expectedRevision } : {}),
-              ...(commitOptions.signal ? { signal: commitOptions.signal } : {}),
-            });
+            item = change.changes.length === 0
+              ? current
+              : await adapter.update(targetId, change.input as UpdateWorkItemInput, {
+                ...(change.expectedRevision ? { expectedRevision: change.expectedRevision } : {}),
+                ...(commitOptions.signal ? { signal: commitOptions.signal } : {}),
+              });
           } else {
             comment = await adapter.addComment(targetId, change.input as AddCommentInput, commitOptions.signal ? { signal: commitOptions.signal } : {});
             item = await adapter.get(targetId, commitOptions.signal ? { signal: commitOptions.signal } : {});
@@ -217,7 +259,12 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
           replayed: false,
           committedAt: now().toISOString(),
         };
-        if (key !== undefined) await store.set(`${adapter.provider}:${key}`, result);
+        if (key !== undefined) {
+          await store.set(`${adapter.provider}:${key}`, {
+            ...result,
+            __workSdkIntentFingerprint: requestBinding,
+          } as StoredCommitResult);
+        }
         return result;
       } finally {
         releaseLock();

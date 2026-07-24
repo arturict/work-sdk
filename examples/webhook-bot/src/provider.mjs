@@ -2,6 +2,7 @@ import { github } from "work-sdk/github";
 import { linear } from "work-sdk/linear";
 import { jira } from "work-sdk/jira";
 import { azureDevOps } from "work-sdk/azure-devops";
+import { gitlab } from "work-sdk/gitlab";
 import { memoryWorkAdapter, workItemFixture } from "work-sdk/testing";
 
 const required = (env, name) => {
@@ -19,6 +20,11 @@ export function providerFromEnv(env = process.env) {
     case "azure-devops": return azureDevOps({
       organization: required(env, "AZURE_DEVOPS_ORGANIZATION"), project: required(env, "AZURE_DEVOPS_PROJECT"),
       auth: { type: env.AZURE_DEVOPS_AUTH === "pat" ? "pat" : "entra", token: required(env, "AZURE_DEVOPS_TOKEN") },
+    });
+    case "gitlab": return gitlab({
+      project: required(env, "GITLAB_PROJECT"),
+      token: required(env, "GITLAB_TOKEN"),
+      apiBaseUrl: env.GITLAB_API_BASE_URL || "https://gitlab.com/api/v4",
     });
     default: throw new Error(`Unsupported WORK_PROVIDER '${env.WORK_PROVIDER}'`);
   }

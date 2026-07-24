@@ -9,6 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/docs/examples",
     "/docs/concepts/safe-writes",
     "/docs/providers",
+    "/docs/providers/gitlab",
     "/docs/providers/azure-devops",
     "/docs/reference/client",
     "/docs/reference/errors",

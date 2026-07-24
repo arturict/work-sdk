@@ -25,12 +25,13 @@ try {
   const smoke = `
     import { createWorkClient, MemoryIdempotencyStore } from "work-sdk";
     import { github } from "work-sdk/github";
+    import { gitlab } from "work-sdk/gitlab";
     import { linear } from "work-sdk/linear";
     import { jira } from "work-sdk/jira";
     import { azureDevOps } from "work-sdk/azure-devops";
     import { memoryWorkAdapter } from "work-sdk/testing";
     const client = createWorkClient({ adapter: memoryWorkAdapter(), idempotencyStore: new MemoryIdempotencyStore() });
-    if (client.provider !== "memory" || !github || !linear || !jira || !azureDevOps) process.exit(1);
+    if (client.provider !== "memory" || !github || !gitlab || !linear || !jira || !azureDevOps) process.exit(1);
   `;
   writeFileSync(join(temp, "smoke.mjs"), smoke);
   execFileSync(process.execPath, ["smoke.mjs"], { cwd: temp, stdio: "pipe" });

@@ -2,6 +2,7 @@ import { github } from "work-sdk/github";
 import { linear } from "work-sdk/linear";
 import { jira } from "work-sdk/jira";
 import { azureDevOps } from "work-sdk/azure-devops";
+import { gitlab } from "work-sdk/gitlab";
 import { memoryWorkAdapter, workItemFixture } from "work-sdk/testing";
 
 const required = (env, name) => {
@@ -62,6 +63,14 @@ export function providerFromEnv(env = process.env) {
     });
   }
 
+  if (provider === "gitlab") {
+    return gitlab({
+      project: required(env, "GITLAB_PROJECT"),
+      token: required(env, "GITLAB_TOKEN"),
+      apiBaseUrl: env.GITLAB_API_BASE_URL || "https://gitlab.com/api/v4",
+    });
+  }
+
   throw new Error(`Unsupported WORK_PROVIDER '${provider}'`);
 }
 
@@ -72,6 +81,7 @@ export function targetStateFor(provider, env = process.env) {
     linear: "Done",
     jira: "Done",
     "azure-devops": "Closed",
+    gitlab: "closed",
     memory: "completed",
   })[provider] ?? "completed";
 }

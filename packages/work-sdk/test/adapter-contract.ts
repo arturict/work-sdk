@@ -17,6 +17,12 @@ export function workAdapterContract(options: WorkAdapterContractOptions): void {
     it("returns canonical, isolated items from get", async () => {
       const adapter = options.createAdapter();
       const first = await adapter.get(options.existingItem.id);
+      const originalTitle = first.title;
+      const originalAssignees = structuredClone(first.assignees);
+      const originalLabels = structuredClone(first.labels);
+      first.title = "Locally mutated title";
+      first.assignees.push({ id: "local-user", displayName: "Local user", provider: adapter.provider });
+      first.labels.push({ name: "local-label" });
       const second = await adapter.get(options.existingItem.id);
       expect(first).toMatchObject({
         id: options.existingItem.id,
@@ -26,6 +32,11 @@ export function workAdapterContract(options: WorkAdapterContractOptions): void {
         labels: expect.any(Array),
       });
       expect(first).not.toBe(second);
+      expect(second).toMatchObject({
+        title: originalTitle,
+        assignees: originalAssignees,
+        labels: originalLabels,
+      });
     });
 
     it("returns a page and respects a one-item limit", async () => {
@@ -33,6 +44,22 @@ export function workAdapterContract(options: WorkAdapterContractOptions): void {
       const page = await adapter.list({ limit: 1 });
       expect(page.items).toHaveLength(1);
       expect(page.items[0]?.provider).toBe(adapter.provider);
+    });
+
+    it("does not expose adapter state through list results", async () => {
+      const adapter = options.createAdapter();
+      const first = await adapter.list({ limit: 1 });
+      const listed = first.items[0]!;
+      const originalTitle = listed.title;
+      listed.title = "Locally mutated list item";
+      listed.labels.push({ name: "local-label" });
+
+      const second = await adapter.list({ limit: 1 });
+      expect(second.items[0]).toMatchObject({
+        id: listed.id,
+        title: originalTitle,
+      });
+      expect(second.items[0]?.labels).not.toContainEqual({ name: "local-label" });
     });
 
     it("creates an item with stable identity and timestamps", async () => {
@@ -75,6 +102,7 @@ export function workAdapterContract(options: WorkAdapterContractOptions): void {
       if (!adapter.capabilities.comments) return;
       const comment = await adapter.addComment(options.existingItem.id, { body: "Contract comment" });
       expect(comment).toMatchObject({ id: expect.any(String), body: "Contract comment", createdAt: expect.any(String) });
+      expect(Date.parse(comment.createdAt)).not.toBeNaN();
     });
 
     for (const operation of ["list", "get", "create", "update", "addComment"] as const) {

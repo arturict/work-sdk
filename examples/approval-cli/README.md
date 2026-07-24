@@ -1,6 +1,6 @@
 # Approval CLI example
 
-A runnable prepare → inspect → approve → commit workflow. It starts locally with the memory adapter, then switches to GitHub, Linear, Jira, or Azure DevOps through environment variables.
+A runnable prepare → inspect → approve → commit workflow. It starts locally with the memory adapter, then switches to GitHub, GitLab, Linear, Jira, or Azure DevOps through environment variables.
 
 ## Run without credentials
 

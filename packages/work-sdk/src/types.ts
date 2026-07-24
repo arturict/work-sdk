@@ -1,4 +1,4 @@
-export type WorkProvider = "github" | "linear" | "jira" | "azure-devops" | (string & {});
+export type WorkProvider = "github" | "linear" | "jira" | "azure-devops" | "gitlab" | (string & {});
 
 export type WorkItemKind = "issue" | "task" | "bug" | "story" | "epic" | "subtask" | "other";
 export type WorkItemState = "backlog" | "unstarted" | "started" | "completed" | "canceled" | "unknown";

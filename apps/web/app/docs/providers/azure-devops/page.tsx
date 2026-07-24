@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 
 import { CodeBlock, DocsCallout, DocsNext, DocsShell } from "@/components/docs-shell";
+import { createPageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Azure DevOps provider", description: "Configure Azure DevOps authentication, work-item normalization, WIQL search, and safe writes.", alternates: { canonical: "/docs/providers/azure-devops" } };
+export const metadata: Metadata = createPageMetadata({
+  title: "Azure DevOps TypeScript SDK adapter",
+  description: "Configure Azure DevOps authentication, work-item normalization, WIQL search, JSON Patch revisions, and safe writes.",
+  path: "/docs/providers/azure-devops",
+  keywords: ["Azure DevOps TypeScript SDK", "Azure DevOps work items API", "WIQL SDK"],
+});
 
 const entra = `import { createWorkClient } from "work-sdk";
 import { azureDevOps } from "work-sdk/azure-devops";

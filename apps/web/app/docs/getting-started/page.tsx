@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 
 import { CodeBlock, DocsCallout, DocsNext, DocsShell } from "@/components/docs-shell";
+import { createPageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Getting started", description: "Install Work SDK and complete your first provider read and safe write.", alternates: { canonical: "/docs/getting-started" } };
+export const metadata: Metadata = createPageMetadata({
+  title: "Getting started with Work SDK",
+  description: "Install the Work SDK TypeScript package and complete your first provider read and safe write.",
+  path: "/docs/getting-started",
+  keywords: ["install Work SDK", "TypeScript SDK quickstart", "work-sdk npm"],
+});
 
 const configure = `import { createWorkClient } from "work-sdk";
 import { linear } from "work-sdk/linear";

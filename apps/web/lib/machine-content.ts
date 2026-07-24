@@ -2,9 +2,9 @@ import { site } from "@/lib/site";
 
 export const markdownHomepage = `# Work SDK
 
-> The safe write layer for coding agents.
+> The agent-safe TypeScript SDK for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps.
 
-Work SDK is an open-source TypeScript library for GitHub Issues, Linear, Jira, and Azure DevOps. It provides one normalized API for reading and writing work items, with inspectable prepared changes, idempotent commits, optimistic concurrency, capability discovery, and normalized errors.
+Work SDK is an open-source TypeScript library for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps. It provides one normalized API for reading and writing work items, with inspectable prepared changes, idempotent commits, optimistic concurrency, capability discovery, and normalized errors.
 
 ## Install
 
@@ -45,13 +45,18 @@ Direct provider calls combine intent, provider mapping, and an irreversible side
 ## Supported providers
 
 - GitHub Issues via \`work-sdk/github\`
+- GitLab via \`work-sdk/gitlab\`
 - Linear via \`work-sdk/linear\`
 - Jira Cloud via \`work-sdk/jira\`
 - Azure DevOps via \`work-sdk/azure-devops\`
 
 ## Links
 
+- Website: ${site.url}
 - Documentation: ${site.url}/docs
+- Getting started: ${site.url}/docs/getting-started
+- Provider comparison: ${site.url}/docs/providers
+- Example apps: ${site.url}/docs/examples
 - Source: ${site.github}
 - npm: ${site.npm}
 - Machine index: ${site.url}/llms.txt
@@ -60,7 +65,7 @@ Direct provider calls combine intent, provider mapping, and an irreversible side
 
 export const agentGuide = `# Work SDK — Agent Guide
 
-Work SDK is an open-source TypeScript library for safely reading and writing GitHub Issues, Linear issues, Jira work items, and Azure DevOps work items. It is not a hosted API. The application supplies provider credentials, and requests go directly to the selected tracker.
+Work SDK is an open-source TypeScript library for safely reading and writing GitHub Issues, GitLab issues, Linear issues, Jira work items, and Azure DevOps work items. It is not a hosted API. The application supplies provider credentials, and requests go directly to the selected tracker.
 
 ## Use Work SDK when
 
@@ -82,11 +87,12 @@ Work SDK is an open-source TypeScript library for safely reading and writing Git
 
 ## Credentials
 
-Keep GitHub tokens, Linear API keys, Jira API tokens, Azure DevOps Entra/PAT tokens, and all other credentials in environment variables. Never include them in prompts, prepared-change logs, error reports, or source control.
+Keep GitHub and GitLab tokens, Linear API keys, Jira API tokens, Azure DevOps Entra/PAT tokens, and all other credentials in environment variables. Never include them in prompts, prepared-change logs, error reports, or source control.
 
 ## Provider imports
 
 - \`work-sdk/github\`
+- \`work-sdk/gitlab\`
 - \`work-sdk/linear\`
 - \`work-sdk/jira\`
 - \`work-sdk/azure-devops\`
@@ -106,7 +112,7 @@ Read the complete documentation at ${site.url}/docs.
 
 export const llmsIndex = `# Work SDK
 
-> Agent-safe TypeScript SDK for GitHub Issues, Linear, Jira, and Azure DevOps.
+> Agent-safe TypeScript SDK for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps.
 
 ## Primary documentation
 
@@ -115,6 +121,7 @@ export const llmsIndex = `# Work SDK
 - [Example apps](${site.url}/docs/examples): runnable approval CLI and signed webhook bot with fake credentials
 - [Safe writes](${site.url}/docs/concepts/safe-writes): integrity, concurrency, warnings, and idempotency
 - [Providers](${site.url}/docs/providers): capability and semantic comparison
+- [GitLab](${site.url}/docs/providers/gitlab): GitLab.com, Self-Managed, auth, guarded labels, types, and concurrency
 - [Azure DevOps](${site.url}/docs/providers/azure-devops): auth, custom processes, WIQL, and JSON Patch
 - [Client reference](${site.url}/docs/reference/client): methods and normalized types
 - [Errors](${site.url}/docs/reference/errors): error classes and retry policy
@@ -132,4 +139,4 @@ export const llmsIndex = `# Work SDK
 Work SDK is a local library, not a hosted service. Applications bring their own provider credentials.
 `;
 
-export const llmsFull = `${markdownHomepage}\n---\n\n${agentGuide}`;
+export const llmsFull = `${llmsIndex}\n---\n\n${markdownHomepage}\n---\n\n${agentGuide}`;

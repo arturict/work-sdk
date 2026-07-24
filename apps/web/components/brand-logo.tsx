@@ -1,10 +1,11 @@
-type Brand = "github" | "linear" | "jira" | "azure-devops";
+type Brand = "github" | "gitlab" | "linear" | "jira" | "azure-devops";
 
 const logos = {
   github: {
     light: "/brands/github-light.svg",
     dark: "/brands/github-dark.svg",
   },
+  gitlab: { light: "/brands/gitlab.svg" },
   linear: { light: "/brands/linear.svg" },
   jira: { light: "/brands/atlassian.svg" },
   "azure-devops": { light: "/brands/azure.svg" },

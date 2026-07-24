@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
 
 import { CodeBlock, DocsCallout, DocsNext, DocsShell } from "@/components/docs-shell";
+import { createPageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = { title: "Errors", description: "Handle normalized Work SDK errors safely across providers.", alternates: { canonical: "/docs/reference/errors" } };
+export const metadata: Metadata = createPageMetadata({
+  title: "Error handling reference",
+  description: "Handle authentication, authorization, rate limit, conflict, validation, and unsupported errors consistently across work trackers.",
+  path: "/docs/reference/errors",
+  keywords: ["Work SDK errors", "API conflict handling", "issue tracker rate limits"],
+});
 
 const handling = `import {
   WorkAuthenticationError,

@@ -82,6 +82,26 @@ describe("memoryWorkAdapter", () => {
     await expect(adapter.list({ cursor: "bad" })).rejects.toBeInstanceOf(WorkValidationError);
   });
 
+  it("isolates list results, recorded filters, and seeded items from caller mutations", async () => {
+    const seeded = seedItems();
+    const adapter = memoryWorkAdapter({ items: seeded });
+    seeded[0]!.title = "Mutated seed";
+    seeded[0]!.labels[0]!.name = "mutated-seed-label";
+    const input = { labels: ["urgent"], limit: 1 };
+    const first = await adapter.list(input);
+    input.labels[0] = "mutated-filter";
+    first.items[0]!.title = "Mutated result";
+    first.items[0]!.labels[0]!.name = "mutated-result-label";
+
+    const stored = await adapter.get("item-1");
+    expect(stored.title).toBe("Fix login bug");
+    expect(stored.labels.map((label) => label.name)).toEqual(["bug", "urgent"]);
+    expect(adapter.calls[0]).toMatchObject({
+      operation: "list",
+      input: { labels: ["urgent"], limit: 1 },
+    });
+  });
+
   it("gets by id or identifier and throws typed not-found errors", async () => {
     const adapter = memoryWorkAdapter({ items: seedItems() });
     await expect(adapter.get("item-1")).resolves.toMatchObject({ identifier: "MEM-1" });
@@ -126,6 +146,32 @@ describe("memoryWorkAdapter", () => {
     expect(adapter.comments.get("item-1")).toEqual([comment]);
     expect(adapter.calls.at(-1)).toMatchObject({ operation: "addComment", id: "item-1", input: { body: "A note" } });
     await expect(adapter.addComment("item-1", { body: " " })).rejects.toBeInstanceOf(WorkValidationError);
+  });
+
+  it("returns isolated create, update, and comment values", async () => {
+    const adapter = memoryWorkAdapter({ items: seedItems() });
+    const created = await adapter.create({ title: "Created", labels: ["original"] });
+    created.title = "Mutated created result";
+    created.labels[0]!.name = "mutated-created-label";
+
+    const updated = await adapter.update("item-1", { labels: ["updated"] });
+    updated.title = "Mutated updated result";
+    updated.labels[0]!.name = "mutated-updated-label";
+
+    const comment = await adapter.addComment("item-1", { body: "Stored comment" });
+    comment.body = "Mutated comment result";
+
+    await expect(adapter.get(created.id)).resolves.toMatchObject({
+      title: "Created",
+      labels: [{ name: "original" }],
+    });
+    await expect(adapter.get("item-1")).resolves.toMatchObject({
+      title: "Fix login bug",
+      labels: [{ name: "updated" }],
+    });
+    expect(adapter.comments.get("item-1")).toEqual([
+      expect.objectContaining({ body: "Stored comment" }),
+    ]);
   });
 
   it.each([

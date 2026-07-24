@@ -1,8 +1,18 @@
 {
   "name": "work-sdk",
-  "version": "0.2.0",
-  "description": "A type-safe, agent-safe SDK for GitHub Issues, Linear, Jira, and Azure DevOps.",
-  "keywords": ["issues", "jira", "linear", "github", "azure-devops", "agents", "sdk", "typescript"],
+  "version": "0.3.0",
+  "description": "A type-safe, agent-safe SDK for GitHub, GitLab, Linear, Jira, and Azure DevOps.",
+  "keywords": [
+    "issues",
+    "jira",
+    "linear",
+    "github",
+    "gitlab",
+    "azure-devops",
+    "agents",
+    "sdk",
+    "typescript"
+  ],
   "license": "MIT",
   "author": "Work SDK contributors",
   "homepage": "https://work-sdk.vercel.app",
@@ -15,7 +25,12 @@
   },
   "type": "module",
   "sideEffects": false,
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
+  ],
   "exports": {
     ".": {
       "import": {
@@ -65,6 +80,16 @@
       "require": {
         "types": "./dist/azure-devops.d.cts",
         "default": "./dist/azure-devops.cjs"
+      }
+    },
+    "./gitlab": {
+      "import": {
+        "types": "./dist/gitlab.d.ts",
+        "default": "./dist/gitlab.js"
+      },
+      "require": {
+        "types": "./dist/gitlab.d.cts",
+        "default": "./dist/gitlab.cjs"
       }
     },
     "./testing": {

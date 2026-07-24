@@ -4,42 +4,103 @@ import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { ArrowIcon, CheckIcon, LayersIcon, RefreshIcon, ShieldIcon, TerminalIcon } from "@/components/icons";
 import { Workbench } from "@/components/workbench";
-import { site } from "@/lib/site";
+import { createPageMetadata, site } from "@/lib/site";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-};
+export const metadata: Metadata = createPageMetadata({
+  title: site.title,
+  description: site.description,
+  path: "/",
+  type: "website",
+  absoluteTitle: true,
+  keywords: [
+    "TypeScript SDK for issue trackers",
+    "AI agent tools",
+    "GitHub Issues API",
+    "GitLab Issues API",
+    "Linear SDK",
+    "Jira SDK",
+    "Azure DevOps SDK",
+    "safe agent writes",
+  ],
+});
 
 const capabilityRows = [
-  ["Create and update", true, true, true, true],
-  ["Comments", true, true, true, true],
-  ["Custom states", false, true, true, true],
-  ["Multiple assignees", true, false, false, false],
-  ["Optimistic concurrency", true, true, true, true],
+  ["Create and update", true, true, true, true, true],
+  ["Comments", true, true, true, true, true],
+  ["Custom states", false, false, true, true, true],
+  ["Multiple assignees", true, false, false, false, false],
+  ["Optimistic concurrency", true, true, true, true, true],
 ] as const;
 
 export default function HomePage() {
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "SoftwareSourceCode",
-    name: "Work SDK",
-    codeRepository: site.github,
-    programmingLanguage: "TypeScript",
-    license: "https://opensource.org/license/mit",
-    description: site.description,
-    runtimePlatform: "Node.js",
+    "@graph": [
+      {
+        "@type": ["SoftwareApplication", "SoftwareSourceCode"],
+        "@id": `${site.url}/#software`,
+        name: "Work SDK",
+        url: site.url,
+        description: site.description,
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "Node.js 20 or later",
+        programmingLanguage: "TypeScript",
+        codeRepository: site.github,
+        downloadUrl: site.npm,
+        license: "https://opensource.org/license/mit",
+        isAccessibleForFree: true,
+        featureList: [
+          "Prepared and inspectable work-item changes",
+          "Idempotent commits",
+          "Optimistic concurrency",
+          "Provider capability discovery",
+          "Normalized errors",
+        ],
+        sameAs: [site.github, site.npm],
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${site.url}/#faq`,
+        mainEntity: [
+          {
+            "@type": "Question",
+            name: "Is Work SDK a hosted service?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "No. It is an open-source TypeScript library that runs in your application. You bring credentials for the trackers you already use.",
+            },
+          },
+          {
+            "@type": "Question",
+            name: "Does Work SDK replace human approval?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "No. Work SDK gives approval systems a concrete diff and warnings to evaluate. Your application decides when a human must approve a commit.",
+            },
+          },
+          {
+            "@type": "Question",
+            name: "Which issue trackers does Work SDK support?",
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: "Work SDK supports GitHub Issues, GitLab, Linear, Jira Cloud, and Azure DevOps through separate adapters behind one normalized TypeScript API.",
+            },
+          },
+        ],
+      },
+    ],
   };
 
   return (
     <main id="main-content">
-      <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} type="application/ld+json" />
+      <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} type="application/ld+json" />
 
       <section className="hero shell">
         <div className="hero-copy">
           <p className="eyebrow"><span className="pulse" /> The safe write layer for coding agents</p>
           <h1>One work SDK for <span>every tracker.</span></h1>
           <p className="hero-summary">
-            Create, update, comment on, and transition work across GitHub, Linear, Jira, and Azure DevOps with one typed API — with previews, idempotency, and conflict protection built in.
+            Create, update, comment on, and transition work across GitHub, GitLab, Linear, Jira, and Azure DevOps with one typed API — with previews, idempotency, and conflict protection built in.
           </p>
           <div className="hero-actions">
             <Link className="button primary" href="/docs">Read the docs <ArrowIcon /></Link>
@@ -57,8 +118,8 @@ export default function HomePage() {
       <section aria-labelledby="providers-title" className="provider-strip">
         <div className="shell provider-strip-inner">
           <p id="providers-title">One normalized model for</p>
-          <div className="provider-list"><span><BrandLogo brand="github" /> GitHub Issues</span><span><BrandLogo brand="linear" /> Linear</span><span><BrandLogo brand="jira" /> Jira</span><span><BrandLogo brand="azure-devops" /> Azure DevOps</span></div>
-          <p className="provider-note">More adapters welcome</p>
+          <div className="provider-list"><span><BrandLogo brand="github" /> GitHub Issues</span><span><BrandLogo brand="gitlab" /> GitLab</span><span><BrandLogo brand="linear" /> Linear</span><span><BrandLogo brand="jira" /> Jira</span><span><BrandLogo brand="azure-devops" /> Azure DevOps</span></div>
+          <p className="provider-note"><Link href="/docs/providers">Compare providers</Link></p>
         </div>
       </section>
 
@@ -110,12 +171,12 @@ export default function HomePage() {
             <p className="kicker">Honest by design</p>
             <h2>Know what each provider can do.</h2>
             <p>Capabilities are data, not scattered documentation. Detect support before an agent proposes an action.</p>
-            <Link className="text-link" href="/docs#providers">Explore adapter docs <ArrowIcon /></Link>
+            <Link className="text-link" href="/docs/providers">Explore adapter docs <ArrowIcon /></Link>
           </div>
           <div className="table-wrap">
             <table>
               <caption className="sr-only">Work SDK provider capability comparison</caption>
-              <thead><tr><th scope="col">Capability</th><th scope="col"><span className="provider-heading"><BrandLogo brand="github" />GitHub</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="linear" />Linear</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="jira" />Jira</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="azure-devops" />Azure</span></th></tr></thead>
+              <thead><tr><th scope="col">Capability</th><th scope="col"><span className="provider-heading"><BrandLogo brand="github" />GitHub</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="gitlab" />GitLab</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="linear" />Linear</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="jira" />Jira</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="azure-devops" />Azure</span></th></tr></thead>
               <tbody>{capabilityRows.map(([label, ...values]) => <tr key={label}><th scope="row">{label}</th>{values.map((value, index) => <td key={index}>{value ? <span className="table-yes"><CheckIcon /><span className="sr-only">Supported</span></span> : <span className="table-no" aria-label="Limited">—</span>}</td>)}</tr>)}</tbody>
             </table>
           </div>
@@ -128,6 +189,7 @@ export default function HomePage() {
           <details><summary>Is Work SDK a hosted service?</summary><p>No. It is an open-source TypeScript library that runs in your application. You bring credentials for the trackers you already use.</p></details>
           <details><summary>Can I inspect provider-specific data?</summary><p>Yes. Normalized entities can retain the raw provider payload for fields that are not part of the portable core.</p></details>
           <details><summary>Does it replace human approval?</summary><p>No. Work SDK gives approval systems a concrete diff and warnings to evaluate. Your application decides when a human must approve a commit.</p></details>
+          <details><summary>Which issue trackers are supported?</summary><p>Work SDK supports GitHub Issues, GitLab, Linear, Jira Cloud, and Azure DevOps through separate adapters behind one normalized TypeScript API.</p></details>
           <details><summary>Can I add another tracker?</summary><p>Yes. Adapters implement a compact contract and can be tested against the shared conformance suite.</p></details>
         </div>
       </section>
@@ -135,7 +197,7 @@ export default function HomePage() {
       <section className="final-cta">
         <div className="shell final-cta-inner">
           <div><p className="kicker">Give agents a safer tool</p><h2>Ship work, not side effects.</h2><p>Start with one provider. Keep one API when your stack changes.</p></div>
-          <div className="hero-actions"><Link className="button inverted" href="/docs">Get started <ArrowIcon /></Link><a className="button ghost-dark" href={site.github}>Star on GitHub</a></div>
+          <div className="hero-actions"><Link className="button inverted" href="/docs/getting-started">Get started <ArrowIcon /></Link><a className="button ghost-dark" href={site.github}>Star on GitHub</a></div>
         </div>
       </section>
     </main>

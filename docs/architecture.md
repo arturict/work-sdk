@@ -13,6 +13,7 @@ application / agent
   WorkAdapter contract
         |
         +-- GitHub Issues REST
+        +-- GitLab Issues REST v4
         +-- Linear GraphQL
         +-- Jira Cloud REST v3
         `-- Azure DevOps REST 7.1 + WIQL
@@ -44,6 +45,7 @@ Version 0.1 publishes one zero-runtime-dependency package with stable subpath ex
 
 - `work-sdk` — core client, types, errors, stores
 - `work-sdk/github` — GitHub Issues adapter
+- `work-sdk/gitlab` — GitLab.com and GitLab Self-Managed adapter
 - `work-sdk/linear` — Linear adapter
 - `work-sdk/jira` — Jira Cloud adapter
 - `work-sdk/azure-devops` — Azure DevOps Boards adapter

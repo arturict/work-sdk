@@ -6,7 +6,7 @@ import { CopyButton } from "@/components/copy-button";
 const navigation = [
   { label: "Start", links: [["Overview", "/docs"], ["Getting started", "/docs/getting-started"], ["Example apps", "/docs/examples"]] },
   { label: "Concepts", links: [["Safe writes", "/docs/concepts/safe-writes"], ["Providers", "/docs/providers"]] },
-  { label: "Providers", links: [["Azure DevOps", "/docs/providers/azure-devops"]] },
+  { label: "Providers", links: [["GitLab", "/docs/providers/gitlab"], ["Azure DevOps", "/docs/providers/azure-devops"]] },
   { label: "Reference", links: [["Client API", "/docs/reference/client"], ["Errors", "/docs/reference/errors"]] },
   { label: "Guides", links: [["Agent integration", "/docs/guides/agents"], ["Testing", "/docs/guides/testing"]] },
 ] as const;

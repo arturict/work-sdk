@@ -1,6 +1,6 @@
 # Work SDK
 
-**One work SDK for every tracker.** Work SDK gives coding agents and TypeScript applications one typed API for GitHub Issues, Linear, Jira, and Azure DevOps—with previews, idempotency, and conflict protection built in.
+**One work SDK for every tracker.** Work SDK gives coding agents and TypeScript applications one typed API for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps—with previews, idempotency, and conflict protection built in.
 
 ```bash
 npm install work-sdk
@@ -66,6 +66,20 @@ const adapter = linear({
 });
 ```
 
+### GitLab
+
+```ts
+import { gitlab } from "work-sdk/gitlab";
+
+const adapter = gitlab({
+  project: "acme/platform",
+  token: process.env.GITLAB_TOKEN!,
+  // apiBaseUrl: "https://gitlab.example.com/api/v4",
+});
+```
+
+GitLab supports GitLab.com and Self-Managed, private-token and OAuth auth, search, Markdown comments, explicit issue-type maps, and guarded label writes. Missing labels are rejected by default because GitLab would otherwise create them silently.
+
 ### Jira Cloud
 
 ```ts
@@ -103,6 +117,7 @@ Credentials stay inside adapters and are never copied into prepared changes.
 - [Safe-write protocol](https://work-sdk.vercel.app/docs/concepts/safe-writes)
 - [Provider comparison](https://work-sdk.vercel.app/docs/providers)
 - [Azure DevOps guide](https://work-sdk.vercel.app/docs/providers/azure-devops)
+- [GitLab guide](https://work-sdk.vercel.app/docs/providers/gitlab)
 - [Client API reference](https://work-sdk.vercel.app/docs/reference/client)
 - [Normalized errors](https://work-sdk.vercel.app/docs/reference/errors)
 - [Agent integration](https://work-sdk.vercel.app/docs/guides/agents)
@@ -132,7 +147,7 @@ const comment = await work.prepareComment(issue.id, {
 
 ## Idempotency
 
-The default in-memory store prevents duplicate writes within one process. For serverless or multi-process systems, pass a durable store:
+The default in-memory store prevents duplicate writes within one process. Each key is bound to the normalized provider, action, target, and input, so accidentally reusing it for different intent fails with `WorkConflictError`. For serverless or multi-process systems, pass a durable store:
 
 ```ts
 import type { CommitResult, IdempotencyStore } from "work-sdk";
@@ -150,6 +165,8 @@ const work = createWorkClient({ adapter, idempotencyStore: store });
 ```
 
 Use a stable key derived from the business event, not from a random agent run ID.
+
+Semantic no-op updates still validate the current revision but skip the provider mutation entirely.
 
 ## Capability discovery
 
