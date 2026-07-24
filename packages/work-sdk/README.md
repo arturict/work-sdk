@@ -44,6 +44,7 @@ const replay = await work.commit(change, {
 
 console.log(first.replayed);  // false
 console.log(replay.replayed); // true — no duplicate provider write
+console.log(first.comment.body); // typed as string for a comment receipt
 ```
 
 ## Why a safe-write protocol?
@@ -137,6 +138,11 @@ An atomic claim is mandatory: a plain `get` followed by `set` can duplicate writ
 
 - [Why retries create duplicate issue comments](https://work-sdk.vercel.app/guides/agent-safe-work-tracker-writes)
 - [Safe-write protocol](https://work-sdk.vercel.app/docs/concepts/safe-writes)
+- [GitHub guide](https://work-sdk.vercel.app/docs/providers/github)
+- [GitLab guide](https://work-sdk.vercel.app/docs/providers/gitlab)
+- [Linear guide](https://work-sdk.vercel.app/docs/providers/linear)
+- [Jira Cloud guide](https://work-sdk.vercel.app/docs/providers/jira)
+- [Azure DevOps guide](https://work-sdk.vercel.app/docs/providers/azure-devops)
 - [Agent integration guide](https://work-sdk.vercel.app/docs/guides/agents)
 - [Testing guide](https://work-sdk.vercel.app/docs/guides/testing)
 - [Client API reference](https://work-sdk.vercel.app/docs/reference/client)

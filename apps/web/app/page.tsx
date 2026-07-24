@@ -95,24 +95,39 @@ export default function HomePage() {
     <main id="main-content">
       <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} type="application/ld+json" />
 
-      <section className="hero shell">
+      <section className="hero hero-centered shell">
         <div className="hero-copy">
-          <p className="eyebrow"><span className="pulse" /> The safe write layer for coding agents</p>
-          <h1>One work SDK for <span>every tracker.</span></h1>
+          <p className="eyebrow"><span className="pulse" /> Open source · v0.5</p>
+          <h1>Work across trackers.<br /><span>Keep one safe API.</span></h1>
           <p className="hero-summary">
-            Create, update, comment on, and transition work across GitHub, GitLab, Linear, Jira, and Azure DevOps with one typed API — with previews, atomic retry coordination, and explicit conflict guarantees.
+            One typed TypeScript SDK for GitHub, GitLab, Linear, Jira, and Azure DevOps. Preview the exact change, coordinate retries, then commit with an explicit receipt.
           </p>
           <div className="hero-actions">
-            <Link className="button primary" href="/docs/getting-started">Run the 5-minute quickstart <ArrowIcon /></Link>
-            <Link className="button secondary" href="/guides/agent-safe-work-tracker-writes">Read the safety model</Link>
+            <Link className="button primary" href="/docs/getting-started">Start building <ArrowIcon /></Link>
+            <a className="button secondary" href="/go/github?from=hero">Browse source</a>
           </div>
-          <dl className="hero-proof">
-            <div><dt>Preview every write</dt><dd>Inspect exact changes before commit.</dd></div>
-            <div><dt>Duplicate-aware</dt><dd>Coordinate workers and stop ambiguous retries.</dd></div>
-            <div><dt>Provider-aware</dt><dd>See capabilities and mapping warnings.</dd></div>
+          <dl className="hero-metrics" aria-label="Project quality">
+            <div><dt>5</dt><dd>adapters</dd></div>
+            <div><dt>186</dt><dd>tests</dd></div>
+            <div><dt>0</dt><dd>runtime deps</dd></div>
           </dl>
         </div>
-        <Workbench />
+        <div aria-hidden="true" className="terrain">
+          <svg viewBox="0 0 1200 360" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="terrain-fill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#6673ff" stopOpacity=".34" />
+                <stop offset=".55" stopColor="#202633" stopOpacity=".58" />
+                <stop offset="1" stopColor="#080a09" stopOpacity="0" />
+              </linearGradient>
+              <filter id="terrain-glow"><feGaussianBlur stdDeviation="18" /></filter>
+            </defs>
+            <path className="terrain-glow" d="M0 336 170 250 285 290 470 118 550 214 668 96 760 225 885 145 990 240 1200 126V360H0Z" />
+            <path className="terrain-fill" d="M0 336 170 250 285 290 470 118 550 214 668 96 760 225 885 145 990 240 1200 126V360H0Z" />
+            <path className="terrain-line" d="m0 336 170-86 115 40 185-172 80 96 118-118 92 129 125-80 105 95 210-114" />
+            <path className="terrain-line subtle" d="m72 346 130-70 100 38 170-143 77 76 122-105 88 115 137-73 103 85 148-87" />
+          </svg>
+        </div>
       </section>
 
       <section aria-labelledby="providers-title" className="provider-strip">
@@ -121,6 +136,15 @@ export default function HomePage() {
           <div className="provider-list"><span><BrandLogo brand="github" /> GitHub Issues</span><span><BrandLogo brand="gitlab" /> GitLab</span><span><BrandLogo brand="linear" /> Linear</span><span><BrandLogo brand="jira" /> Jira</span><span><BrandLogo brand="azure-devops" /> Azure DevOps</span></div>
           <p className="provider-note"><Link href="/docs/providers">Compare providers</Link></p>
         </div>
+      </section>
+
+      <section className="section shell demo-section">
+        <div className="section-heading centered">
+          <p className="kicker">One safe-write protocol</p>
+          <h2>Write one change.<br />Commit through any adapter.</h2>
+          <p>The provider can change. Your prepare → inspect → commit boundary stays the same.</p>
+        </div>
+        <Workbench />
       </section>
 
       <section className="section shell problem-section">

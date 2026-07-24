@@ -23,7 +23,8 @@ const contrastRatio = (foreground, background) => {
 
 test("homepage states the category and safe-write lifecycle", async () => {
   const page = await read("app/page.tsx");
-  assert.match(page, /One work SDK for/);
+  assert.match(page, /Work across trackers/);
+  assert.match(page, /Keep one safe API/);
   assert.match(page, /Prepare\. Inspect\. Commit\./);
   assert.match(page, /GitHub Issues/);
   assert.match(page, /GitLab/);
@@ -128,7 +129,10 @@ test("documentation has guided learning, provider, reference, and testing routes
     "app/docs/examples/page.tsx",
     "app/docs/concepts/safe-writes/page.tsx",
     "app/docs/providers/page.tsx",
+    "app/docs/providers/github/page.tsx",
     "app/docs/providers/gitlab/page.tsx",
+    "app/docs/providers/linear/page.tsx",
+    "app/docs/providers/jira/page.tsx",
     "app/docs/providers/azure-devops/page.tsx",
     "app/docs/reference/client/page.tsx",
     "app/docs/reference/errors/page.tsx",
@@ -141,7 +145,18 @@ test("documentation has guided learning, provider, reference, and testing routes
     assert.match(page, /createPageMetadata/, route);
   }));
   assert.match(await read("app/docs/page.tsx"), /createPageMetadata/);
+  const navigation = await read("components/docs-navigation.tsx");
+  const search = await read("components/docs-search.tsx");
+  assert.match(navigation, /aria-current/);
+  assert.match(navigation, /\/docs\/providers\/github/);
+  assert.match(navigation, /\/docs\/providers\/linear/);
+  assert.match(navigation, /\/docs\/providers\/jira/);
+  assert.match(search, /Ctrl K/);
+  assert.match(search, /role="dialog"/);
   const sitemap = await read("app/sitemap.ts");
+  assert.match(sitemap, /providers\/github/);
+  assert.match(sitemap, /providers\/linear/);
+  assert.match(sitemap, /providers\/jira/);
   assert.match(sitemap, /providers\/azure-devops/);
   assert.match(sitemap, /providers\/gitlab/);
   assert.match(sitemap, /guides\/testing/);

@@ -1,6 +1,6 @@
 {
   "name": "work-sdk",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Unified TypeScript issue-tracker API for GitHub, GitLab, Linear, Jira, and Azure DevOps, with safe AI-agent writes.",
   "keywords": [
     "issue-tracker",
@@ -121,13 +121,15 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && pnpm check:types",
+    "check:types": "tsc --noEmit -p tsconfig.type-tests.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "lint:package": "publint && attw --pack --ignore-rules no-resolution",
     "pack:smoke": "node scripts/pack-smoke.mjs",
     "clean": "rimraf dist coverage",
-    "prepublishOnly": "pnpm check && pnpm test && pnpm build"
+    "release:check": "pnpm check && pnpm test && pnpm build && pnpm lint:package && pnpm pack:smoke",
+    "prepublishOnly": "pnpm release:check"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

@@ -1,5 +1,11 @@
 # work-sdk
 
+## 0.5.0
+
+### Minor Changes
+
+- Return action-specific commit receipts, validate replay receipts against prepared actions, add compile-time API contract tests, and run package-lint and tarball smoke checks as part of the release gate.
+
 ## 0.4.0
 
 ### Minor Changes

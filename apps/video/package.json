@@ -1,0 +1,33 @@
+{
+  "name": "@work-sdk/video",
+  "version": "0.5.0",
+  "description": "Work SDK v0.5 launch video",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.499",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.499"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.499",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.19.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion bundle",
+    "render": "remotion render WorkSdkV05 out/work-sdk-v0.5.mp4 --codec=h264 --crf=18",
+    "still": "remotion still WorkSdkV05 out/work-sdk-v0.5-poster.png --frame=850",
+    "upgrade": "remotion upgrade",
+    "check": "eslint src && tsc",
+    "lint": "eslint src && tsc"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}
