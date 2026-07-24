@@ -4,6 +4,23 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
+const cssVariables = (block) => Object.fromEntries(
+  [...block.matchAll(/--([\w-]+):\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]),
+);
+
+const contrastRatio = (foreground, background) => {
+  const luminance = (hex) => {
+    const channels = hex.match(/[a-f\d]{2}/gi).map((channel) => {
+      const value = Number.parseInt(channel, 16) / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const first = luminance(foreground);
+  const second = luminance(background);
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+};
+
 test("homepage states the category and safe-write lifecycle", async () => {
   const page = await read("app/page.tsx");
   assert.match(page, /One work SDK for/);
@@ -70,6 +87,28 @@ test("interactive controls expose accessible state", async () => {
   assert.match(workbench, /aria-selected/);
   assert.match(workbench, /aria-live/);
   assert.match(workbench, /aria-pressed/);
+});
+
+test("contrast surfaces remain readable in light and dark color schemes", async () => {
+  const css = await read("app/globals.css");
+  const lightBlock = css.match(/^:root\s*\{([\s\S]*?)\}/m)?.[1];
+  const darkBlock = css.match(/@media \(prefers-color-scheme: dark\)[\s\S]*?:root\s*\{([\s\S]*?)\}/)?.[1];
+  assert.ok(lightBlock);
+  assert.ok(darkBlock);
+
+  const light = cssVariables(lightBlock);
+  const dark = { ...light, ...cssVariables(darkBlock) };
+  for (const palette of [light, dark]) {
+    assert.ok(contrastRatio(palette["contrast-ink"], palette["contrast-bg"]) >= 4.5);
+    assert.ok(contrastRatio(palette["contrast-muted"], palette["contrast-bg"]) >= 4.5);
+    assert.ok(contrastRatio(palette["primary-button-ink"], palette["primary-button-bg"]) >= 4.5);
+    assert.ok(contrastRatio(palette.faint, palette.surface) >= 4.5);
+  }
+
+  assert.match(css, /\.feature-grid \.feature-large \{[^}]*background: var\(--contrast-bg\)/);
+  assert.match(css, /\.final-cta \{[^}]*background: var\(--contrast-bg\)/);
+  assert.match(css, /\.diff-arrow \{ color: #929a94; \}/);
+  assert.doesNotMatch(css, /\.final-cta \{[^}]*background: var\(--ink\)/);
 });
 
 test("company marks come from locally cached SVGL assets", async () => {

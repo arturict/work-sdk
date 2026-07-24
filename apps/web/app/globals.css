@@ -4,7 +4,7 @@
   --surface-raised: #fbfbf8;
   --ink: #121413;
   --muted: #636964;
-  --faint: #8d938e;
+  --faint: #6f756f;
   --line: #dfe2dd;
   --line-strong: #c7cbc6;
   --primary: #4d5ee8;
@@ -17,6 +17,13 @@
   --danger: #c34444;
   --code-bg: #111413;
   --code-ink: #e7ece8;
+  --contrast-bg: #121413;
+  --contrast-ink: #f4f7f5;
+  --contrast-muted: #aeb5b0;
+  --contrast-line: #414743;
+  --primary-button-bg: #121413;
+  --primary-button-ink: #ffffff;
+  --primary-button-hover: #272b28;
   --logo-cut: #ffffff;
   --shadow-lg: 0 28px 80px rgba(26, 29, 27, 0.13), 0 2px 7px rgba(26, 29, 27, 0.08);
   --shell: 1220px;
@@ -32,7 +39,7 @@ svg { display: block; }
 
 .shell { width: min(var(--shell), calc(100% - 48px)); margin-inline: auto; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-.skip-link { position: fixed; left: 16px; top: 8px; z-index: 100; transform: translateY(-150%); border-radius: 8px; background: var(--ink); color: white; padding: 10px 14px; font-weight: 700; }
+.skip-link { position: fixed; left: 16px; top: 8px; z-index: 100; transform: translateY(-150%); border-radius: 8px; background: var(--primary-button-bg); color: var(--primary-button-ink); padding: 10px 14px; font-weight: 700; }
 .skip-link:focus { transform: translateY(0); }
 :focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 70%, transparent); outline-offset: 3px; }
 
@@ -59,8 +66,8 @@ svg { display: block; }
 .button { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 10px; border: 1px solid transparent; border-radius: 9px; padding: 0 17px; font-size: 13px; font-weight: 680; transition: transform .18s ease, background .18s ease, border-color .18s ease; }
 .button:hover { transform: translateY(-1px); }
 .button svg, .text-link svg { width: 16px; }
-.button.primary { background: var(--ink); color: white; box-shadow: 0 7px 18px rgba(20, 23, 21, .16); }
-.button.primary:hover { background: #272b28; }
+.button.primary { background: var(--primary-button-bg); color: var(--primary-button-ink); box-shadow: 0 7px 18px rgba(20, 23, 21, .16); }
+.button.primary:hover { background: var(--primary-button-hover); }
 .button.secondary { border-color: var(--line-strong); background: var(--surface); }
 .button.secondary:hover { border-color: #aab0aa; }
 .hero-proof { margin: 42px 0 0; border-top: 1px solid var(--line); }
@@ -104,7 +111,7 @@ svg { display: block; }
 .diff-row > span:first-child { color: #8f9791; }
 .diff-row del { overflow: hidden; color: #f18b8b; text-overflow: ellipsis; white-space: nowrap; }
 .diff-row ins { overflow: hidden; color: #73e6b1; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
-.diff-arrow { color: #5e665f; }
+.diff-arrow { color: #929a94; }
 .warning-row { display: flex; gap: 9px; align-items: flex-start; margin-top: 13px; border: 1px solid #524328; border-radius: 7px; background: #292416; color: #e4bf73; padding: 10px; }
 .warning-row > span { display: grid; width: 14px; height: 14px; flex: none; place-items: center; border: 1px solid #82662e; border-radius: 50%; font-size: 8px; }
 .warning-row p { margin: 0; font-size: 8px; line-height: 1.5; }
@@ -161,8 +168,8 @@ svg { display: block; }
 .feature-grid article > svg { width: 23px; color: var(--primary); }
 .feature-grid h3 { margin: 70px 0 10px; font-size: 16px; }
 .feature-grid p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
-.feature-grid .feature-large { grid-column: span 2; background: var(--ink); color: white; }
-.feature-large p { max-width: 520px; color: #aeb5b0; }
+.feature-grid .feature-large { grid-column: span 2; border-color: var(--contrast-line); background: var(--contrast-bg); color: var(--contrast-ink); }
+.feature-large p { max-width: 520px; color: var(--contrast-muted); }
 .feature-large .mini-code { margin-top: 24px; border-color: #373c39; background: #1d211f; color: #aeb5b0; }
 .mini-code span { color: #b9a7ff; }.mini-code strong { color: #f08e8e; font-weight: 500; }
 
@@ -192,13 +199,15 @@ tbody th { font-weight: 570; }
 .faq-list details[open] summary::after { content: "−"; }
 .faq-list p { max-width: 620px; margin: -5px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 
-.final-cta { overflow: hidden; background: var(--ink); color: white; }
+.final-cta { overflow: hidden; background: var(--contrast-bg); color: var(--contrast-ink); }
 .final-cta-inner { display: flex; min-height: 350px; align-items: center; justify-content: space-between; gap: 60px; }
 .final-cta .kicker { color: #8290ff; }
 .final-cta h2 { margin: 12px 0 14px; font-size: clamp(42px, 5vw, 68px); letter-spacing: -.055em; }
-.final-cta p:not(.kicker) { margin: 0; color: #a7aea9; }
-.button.inverted { background: white; color: var(--ink); }
-.button.ghost-dark { border-color: #414743; color: white; }
+.final-cta p:not(.kicker) { margin: 0; color: var(--contrast-muted); }
+.button.inverted { background: #f4f7f5; color: #111412; }
+.button.inverted:hover { background: #e1e7e3; }
+.button.ghost-dark { border-color: var(--contrast-line); color: var(--contrast-ink); }
+.button.ghost-dark:hover { border-color: #6c756f; background: rgba(255, 255, 255, .04); }
 .final-cta .hero-actions { flex: none; margin: 0; }
 
 .site-footer { border-top: 1px solid var(--line); background: var(--surface); }
@@ -384,10 +393,9 @@ tbody th { font-weight: 570; }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0b0d0c; --surface: #111412; --surface-raised: #151816; --ink: #edf1ee; --muted: #9aa19b; --faint: #707771; --line: #282d29; --line-strong: #3b413c; --primary: #8490ff; --primary-dark: #a3acff; --primary-soft: #1c2144; --success-soft: #143429; --warning-soft: #342815; --logo-cut: #0b0d0c;
+    --bg: #0b0d0c; --surface: #111412; --surface-raised: #151816; --ink: #edf1ee; --muted: #9aa19b; --faint: #7b837d; --line: #282d29; --line-strong: #3b413c; --primary: #8490ff; --primary-dark: #a3acff; --primary-soft: #1c2144; --success-soft: #143429; --warning-soft: #342815; --contrast-bg: #171b18; --contrast-ink: #f4f7f5; --contrast-muted: #b4bcb6; --contrast-line: #3b433e; --primary-button-bg: #eff3f0; --primary-button-ink: #111412; --primary-button-hover: #dfe6e1; --logo-cut: #0b0d0c;
   }
   .install-pill { box-shadow: none; color: #c7cdc8; }
-  .button.primary { background: #eff3f0; color: #111412; }
   .button.secondary { background: var(--surface); }
   .provider-list .github { background: #edf1ee; }
   .workflow-section { background-image: linear-gradient(#202420 1px, transparent 1px), linear-gradient(90deg, #202420 1px, transparent 1px); }
