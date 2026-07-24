@@ -1,6 +1,6 @@
 # Deployment webhook bot example
 
-A small Node HTTP service that verifies an HMAC-signed deployment webhook and posts a retry-safe work-item comment. Duplicate webhook deliveries reuse the same idempotency key and return `replayed: true`.
+A small Node HTTP service that verifies an HMAC-signed deployment webhook and posts an idempotency-coordinated work-item comment. Duplicate deliveries in one process reuse the same key and return `replayed: true`; distributed deployments need an atomic durable store.
 
 ## Run locally
 
@@ -27,4 +27,4 @@ pnpm --filter @work-sdk/example-webhook-bot start:env
 pnpm --filter @work-sdk/example-webhook-bot send-demo:env
 ```
 
-Production deployments should use a durable `IdempotencyStore`, a real secret manager, HTTPS termination, structured logs, rate limiting, and a queue with dead-letter handling.
+Production deployments should use an atomic durable `IdempotencyStore`, a real secret manager, HTTPS termination, structured logs, rate limiting, reconciliation for ambiguous writes, and a queue with dead-letter handling.

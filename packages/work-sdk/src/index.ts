@@ -4,13 +4,15 @@ export {
   WorkAuthenticationError,
   WorkAuthorizationError,
   WorkConflictError,
+  WorkInFlightError,
+  WorkAmbiguousCommitError,
   WorkError,
   WorkNotFoundError,
   WorkRateLimitError,
   WorkUnsupportedError,
   WorkValidationError,
 } from "./errors.js";
-export type { WorkErrorCode } from "./errors.js";
+export type { WorkErrorCode, WorkErrorOptions } from "./errors.js";
 export { MemoryIdempotencyStore } from "./store.js";
 export type {
   AddCommentInput,
@@ -18,8 +20,12 @@ export type {
   CommitResult,
   CreateWorkItemInput,
   IdempotencyStore,
+  IdempotencyAcquireResult,
   ListWorkItemsInput,
   PreparedWorkChange,
+  PreparedCreateWorkChange,
+  PreparedUpdateWorkChange,
+  PreparedCommentWorkChange,
   UpdateWorkItemInput,
   WorkAction,
   WorkAdapter,
@@ -38,3 +44,4 @@ export type {
   WorkUser,
   WorkWarning,
 } from "./types.js";
+export type { WorkFetch } from "./http.js";

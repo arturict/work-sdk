@@ -89,7 +89,7 @@ export function workAdapterContract(options: WorkAdapterContractOptions): void {
 
     it("rejects stale expected revisions when concurrency is supported", async () => {
       const adapter = options.createAdapter();
-      if (!adapter.capabilities.update || !adapter.capabilities.optimisticConcurrency) return;
+      if (!adapter.capabilities.update || adapter.capabilities.concurrency.update === "none") return;
       const before = await adapter.get(options.existingItem.id);
       await adapter.update(before.id, { title: "First update" }, { expectedRevision: before.revision });
       await expect(

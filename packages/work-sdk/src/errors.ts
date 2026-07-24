@@ -4,6 +4,8 @@ export type WorkErrorCode =
   | "authentication"
   | "authorization"
   | "conflict"
+  | "in_flight"
+  | "ambiguous"
   | "not_found"
   | "rate_limit"
   | "unsupported"
@@ -56,6 +58,20 @@ export class WorkConflictError extends WorkError {
   constructor(message = "The work item changed after it was prepared", options: Omit<WorkErrorOptions, "code"> = {}) {
     super(message, { ...options, code: "conflict" });
     this.name = "WorkConflictError";
+  }
+}
+
+export class WorkInFlightError extends WorkError {
+  constructor(message = "An operation with this idempotency key is already in flight", options: Omit<WorkErrorOptions, "code"> = {}) {
+    super(message, { ...options, code: "in_flight" });
+    this.name = "WorkInFlightError";
+  }
+}
+
+export class WorkAmbiguousCommitError extends WorkError {
+  constructor(message = "The provider outcome is ambiguous and must be reconciled before retrying", options: Omit<WorkErrorOptions, "code"> = {}) {
+    super(message, { ...options, code: "ambiguous" });
+    this.name = "WorkAmbiguousCommitError";
   }
 }
 

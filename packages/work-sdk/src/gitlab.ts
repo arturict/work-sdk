@@ -138,6 +138,7 @@ function gitlabError(response: Response, body: unknown): never {
 function mapUser(value: GitLabUser): WorkUser {
   return {
     id: String(value.id),
+    handle: value.username,
     displayName: value.name ?? value.username,
     provider: "gitlab",
     ...(value.avatar_url ? { avatarUrl: value.avatar_url } : {}),
@@ -447,6 +448,7 @@ export function gitlabWorkAdapter(options: GitLabWorkAdapterOptions): WorkAdapte
       customStates: false,
       search: true,
       optimisticConcurrency: true,
+      concurrency: { update: "preflight", comment: "preflight" } as const,
     }),
 
     async list(input: ListWorkItemsInput = {}, callOptions): Promise<WorkPage<WorkItem>> {
@@ -471,8 +473,13 @@ export function gitlabWorkAdapter(options: GitLabWorkAdapterOptions): WorkAdapte
         ...(callOptions?.signal ? { signal: callOptions.signal } : {}),
       });
       const next = nextPage(response);
+      const requestedStates = input.state === undefined
+        ? undefined
+        : new Set(Array.isArray(input.state) ? input.state : [input.state]);
       return {
-        items: body.map((issue) => mapIssue(issue, project)),
+        items: body
+          .map((issue) => mapIssue(issue, project))
+          .filter((item) => requestedStates?.has(item.state) ?? true),
         ...(next ? { nextCursor: `gitlab:page:${next}` } : {}),
       };
     },
@@ -490,7 +497,14 @@ export function gitlabWorkAdapter(options: GitLabWorkAdapterOptions): WorkAdapte
           details: { field: "project", configured: project, received: input.project },
         });
       }
-      const payload = await payloadFor(input, callOptions?.signal);
+      if (input.state !== undefined && !["open", "opened", "unstarted", "reopen", "reopened"].includes(input.state.toLowerCase())) {
+        throw new WorkUnsupportedError("GitLab cannot atomically create an issue in the requested state", {
+          provider: "gitlab",
+          details: { field: "state", value: input.state },
+        });
+      }
+      const { state: _state, ...createInput } = input;
+      const payload = await payloadFor(createInput, callOptions?.signal);
       const expectedIssueType = issueType(input.kind);
       payload.issue_type = expectedIssueType;
       const { body } = await request<GitLabIssue>(`${projectPath}/issues`, {

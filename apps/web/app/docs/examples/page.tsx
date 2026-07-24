@@ -71,7 +71,7 @@ export default function ExamplesPage() {
         <h2>Before production</h2>
         <div className="docs-table-wrap"><table><thead><tr><th>Demo default</th><th>Production replacement</th></tr></thead><tbody>
           <tr><td>Memory adapter</td><td>Authenticated GitHub, GitLab, Linear, Jira, or Azure DevOps adapter</td></tr>
-          <tr><td>Memory idempotency store</td><td>Transactional database or durable key-value store</td></tr>
+          <tr><td>Memory idempotency store</td><td>Transactional database or conditional durable store with atomic claims</td></tr>
           <tr><td>Local fake webhook secret</td><td>Secret-manager value with rotation</td></tr>
           <tr><td>Direct HTTP processing</td><td>Queue, retry policy, reconciliation, and dead-letter handling</td></tr>
           <tr><td>Console output</td><td>Structured redacted logs and audit receipts</td></tr>

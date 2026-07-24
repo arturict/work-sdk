@@ -5,7 +5,10 @@ export type WorkItemState = "backlog" | "unstarted" | "started" | "completed" | 
 export type WorkItemPriority = "urgent" | "high" | "medium" | "low" | "none" | "unknown";
 
 export interface WorkUser {
+  /** Provider reference accepted by assignee write operations. */
   id: string;
+  /** Human-readable provider handle when it differs from the writable id. */
+  handle?: string;
   displayName: string;
   email?: string;
   avatarUrl?: string;
@@ -113,7 +116,12 @@ export interface WorkCapabilities {
   states: boolean;
   customStates: boolean;
   search: boolean;
+  /** @deprecated Use `concurrency` to distinguish atomic and best-effort checks. */
   optimisticConcurrency: boolean;
+  concurrency: {
+    update: "atomic" | "preflight" | "none";
+    comment: "atomic" | "preflight" | "none";
+  };
 }
 
 export interface WorkChangeField {
@@ -128,12 +136,11 @@ export interface WorkWarning {
   field?: string;
 }
 
-export interface PreparedWorkChange {
+interface PreparedWorkChangeBase<TAction extends WorkAction, TInput> {
   readonly id: string;
-  readonly action: WorkAction;
+  readonly action: TAction;
   readonly provider: WorkProvider;
-  readonly targetId?: string;
-  readonly input: CreateWorkItemInput | UpdateWorkItemInput | AddCommentInput;
+  readonly input: TInput;
   readonly current?: WorkItem;
   readonly changes: WorkChangeField[];
   readonly warnings: WorkWarning[];
@@ -142,6 +149,27 @@ export interface PreparedWorkChange {
   readonly preparedAt: string;
   readonly fingerprint: string;
 }
+
+export interface PreparedCreateWorkChange extends PreparedWorkChangeBase<"create", CreateWorkItemInput> {
+  readonly targetId?: never;
+}
+
+export interface PreparedUpdateWorkChange extends PreparedWorkChangeBase<"update", UpdateWorkItemInput> {
+  readonly targetId: string;
+  readonly current: WorkItem;
+  readonly expectedRevision: string;
+}
+
+export interface PreparedCommentWorkChange extends PreparedWorkChangeBase<"comment", AddCommentInput> {
+  readonly targetId: string;
+  readonly current: WorkItem;
+  readonly expectedRevision: string;
+}
+
+export type PreparedWorkChange =
+  | PreparedCreateWorkChange
+  | PreparedUpdateWorkChange
+  | PreparedCommentWorkChange;
 
 export interface CommitOptions {
   idempotencyKey?: string;
@@ -167,9 +195,33 @@ export interface WorkAdapter {
   addComment(id: string, input: AddCommentInput, options?: { signal?: AbortSignal }): Promise<WorkComment>;
 }
 
+export type IdempotencyAcquireResult =
+  | { status: "acquired"; leaseId: string }
+  | { status: "completed"; result: CommitResult }
+  | { status: "in-flight" }
+  | { status: "ambiguous" }
+  | { status: "conflict" };
+
 export interface IdempotencyStore {
-  get(key: string): Promise<CommitResult | undefined> | CommitResult | undefined;
-  set(key: string, result: CommitResult): Promise<void> | void;
+  /**
+   * Atomically claims a business key for one normalized intent. Implementations
+   * must never return `acquired` to two active callers for the same key.
+   */
+  acquire(
+    key: string,
+    intentFingerprint: string,
+  ): Promise<IdempotencyAcquireResult> | IdempotencyAcquireResult;
+  /** Atomically replaces the active lease with a durable receipt. */
+  complete(key: string, leaseId: string, result: CommitResult): Promise<void> | void;
+  /**
+   * Releases a definitely side-effect-free attempt, or permanently marks an
+   * attempt whose provider outcome requires reconciliation.
+   */
+  abandon(
+    key: string,
+    leaseId: string,
+    outcome: "retryable" | "ambiguous",
+  ): Promise<void> | void;
 }
 
 export interface WorkClientOptions {

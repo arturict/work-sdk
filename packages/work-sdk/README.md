@@ -56,7 +56,7 @@ Work SDK separates intent from execution:
 2. **Inspect** lets an agent, policy, approval UI, or person review changes and warnings.
 3. **Commit** verifies the plan fingerprint and revision, then records idempotency.
 
-The same idempotency key with the same intent returns the stored receipt. Reusing that key with different intent fails with `WorkConflictError`.
+The same idempotency key with the same completed intent returns the stored receipt. Reusing that key with different intent fails with `WorkConflictError`; an uncertain provider outcome fails with `WorkAmbiguousCommitError` and blocks blind retries.
 
 ## Connect a provider
 
@@ -91,7 +91,7 @@ Credentials remain inside adapters and never appear in prepared changes.
 | Linear | `work-sdk/linear` | Team states, priorities, projects, comments |
 | Jira Cloud | `work-sdk/jira` | Project transitions, ADF descriptions, comments |
 | Azure DevOps / Azure Boards | `work-sdk/azure-devops` | WIQL, process maps, parent links, atomic revision tests |
-| Deterministic testing | `work-sdk/testing` | In-memory adapter, fixtures, adapter contract utilities |
+| Deterministic testing | `work-sdk/testing` | In-memory adapter and fixtures |
 
 Provider capabilities are runtime data. Check them before an agent proposes an operation:
 
@@ -103,23 +103,26 @@ if (!work.capabilities.priorities) {
 
 ## Work SDK or an official SDK?
 
-Use Work SDK when you need a common issue-tracker client, a diff or approval boundary, safe retries, or stale-write protection. Use an official provider SDK when you need the provider's complete API surface or highly specific features with no normalization.
+Use Work SDK when you need a common issue-tracker client, a diff or approval boundary, coordinated retries, or stale-write protection. Use an official provider SDK when you need the provider's complete API surface or highly specific features with no normalization.
 
 Work SDK is intentionally a focused safety and portability layer.
 
 ## Durable idempotency
 
-The default store coordinates retries inside one process. Serverless, clustered, and job systems should provide a durable store:
+The default store atomically coordinates retries inside one process. Serverless, clustered, and job systems must provide a durable store with an atomic claim:
 
 ```ts
-import type { CommitResult, IdempotencyStore } from "work-sdk";
+import type { IdempotencyStore } from "work-sdk";
 
 const store: IdempotencyStore = {
-  async get(key) {
-    return db.get<CommitResult>(key);
+  async acquire(key, intentFingerprint) {
+    return db.claimWorkSdkIntent({ key, intentFingerprint });
   },
-  async set(key, result) {
-    await db.set(key, result);
+  async complete(key, leaseId, result) {
+    await db.completeWorkSdkIntent({ key, leaseId, result });
+  },
+  async abandon(key, leaseId, outcome) {
+    await db.abandonWorkSdkIntent({ key, leaseId, outcome });
   },
 };
 
@@ -127,6 +130,8 @@ const work = createWorkClient({ adapter, idempotencyStore: store });
 ```
 
 Use a stable key derived from a business event—not a random agent-run identifier.
+
+An atomic claim is mandatory: a plain `get` followed by `set` can duplicate writes across workers. See the [complete store contract](https://github.com/arturict/work-sdk/blob/main/docs/idempotency.md).
 
 ## Learn more
 

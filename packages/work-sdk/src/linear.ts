@@ -155,6 +155,15 @@ function validateSingleAssignee(ids: string[] | undefined): void {
 }
 
 export function linearWorkAdapter(options: LinearWorkAdapterOptions): WorkAdapter {
+  if (options.apiKey !== undefined && options.accessToken !== undefined) {
+    throw new WorkValidationError("Configure either apiKey or accessToken, not both", { provider: "linear" });
+  }
+  if (options.apiKey !== undefined && !options.apiKey.trim()) {
+    throw new WorkValidationError("apiKey must not be empty", { provider: "linear" });
+  }
+  if (options.accessToken !== undefined && !options.accessToken.trim()) {
+    throw new WorkValidationError("accessToken must not be empty", { provider: "linear" });
+  }
   const fetcher = options.fetch ?? globalThis.fetch;
   const endpoint = options.endpoint ?? "https://api.linear.app/graphql";
   const credential = options.accessToken ? `Bearer ${options.accessToken}` : options.apiKey;
@@ -211,9 +220,10 @@ export function linearWorkAdapter(options: LinearWorkAdapterOptions): WorkAdapte
   return {
     provider: "linear",
     capabilities: Object.freeze({
-      create: true, update: true, comments: true, labels: true, multipleAssignees: false,
+      create: Boolean(options.teamId), update: true, comments: true, labels: true, multipleAssignees: false,
       priorities: true, parentLinks: true, states: true, customStates: true, search: true,
       optimisticConcurrency: true,
+      concurrency: { update: "preflight", comment: "preflight" } as const,
     }),
     async list(input: ListWorkItemsInput = {}, callOptions): Promise<WorkPage<WorkItem>> {
       throwIfAborted(callOptions?.signal);
@@ -226,6 +236,7 @@ export function linearWorkAdapter(options: LinearWorkAdapterOptions): WorkAdapte
       if (input.labels?.length) clauses.push(...input.labels.map((name) => ({ labels: { name: { eqIgnoreCase: name } } })));
       if (input.state !== undefined) {
         const types = stateTypes(input.state);
+        if (types.length === 0) return { items: [] };
         if (types.length) clauses.push({ state: { type: { in: types } } });
       }
       if (input.query) clauses.push({ or: [{ title: { containsIgnoreCase: input.query } }, { description: { containsIgnoreCase: input.query } }] });

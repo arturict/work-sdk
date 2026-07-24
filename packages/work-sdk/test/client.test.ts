@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 import { createWorkClient } from "../src/client.js";
-import { WorkConflictError, WorkUnsupportedError, WorkValidationError } from "../src/errors.js";
+import {
+  WorkAmbiguousCommitError,
+  WorkConflictError,
+  WorkInFlightError,
+  WorkUnsupportedError,
+  WorkValidationError,
+} from "../src/errors.js";
 import { fingerprint } from "../src/internal.js";
+import { MemoryIdempotencyStore } from "../src/store.js";
 import { memoryWorkAdapter, workItemFixture } from "../src/testing.js";
-import type { CommitResult, IdempotencyStore, PreparedWorkChange, WorkCapabilities } from "../src/types.js";
+import type { IdempotencyStore, PreparedWorkChange, WorkCapabilities } from "../src/types.js";
 
 const NOW = new Date("2026-04-05T06:07:08.000Z");
 const existing = () => workItemFixture({
@@ -32,13 +39,13 @@ describe("concurrent idempotency", () => {
     expect(results.map((result) => result.replayed).sort()).toEqual([false, true]);
   });
 
-  it("releases the key lock when the first concurrent commit fails", async () => {
+  it("releases a claim after a definitely side-effect-free failure", async () => {
     const { adapter, client } = setup();
-    const change = await client.prepareCreate({ title: "Retry after failure" });
-    const create = adapter.create.bind(adapter);
-    vi.spyOn(adapter, "create")
-      .mockRejectedValueOnce(new Error("transient provider failure"))
-      .mockImplementation(create);
+    const change = await client.prepareUpdate("item-1", { title: "Retry after failure" });
+    const get = adapter.get.bind(adapter);
+    vi.spyOn(adapter, "get")
+      .mockRejectedValueOnce(new WorkValidationError("rejected before provider write"))
+      .mockImplementation(get);
 
     const results = await Promise.allSettled([
       client.commit(change, { idempotencyKey: "recoverable-create" }),
@@ -47,7 +54,7 @@ describe("concurrent idempotency", () => {
 
     expect(results[0]).toMatchObject({
       status: "rejected",
-      reason: expect.objectContaining({ message: "transient provider failure" }),
+      reason: expect.objectContaining({ message: "rejected before provider write" }),
     });
     expect(results[1]).toMatchObject({
       status: "fulfilled",
@@ -56,7 +63,77 @@ describe("concurrent idempotency", () => {
         item: expect.objectContaining({ title: "Retry after failure" }),
       }),
     });
-    expect(adapter.create).toHaveBeenCalledTimes(2);
+    expect(adapter.calls.filter((call) => call.operation === "update")).toHaveLength(1);
+  });
+
+  it("atomically rejects a second client instead of duplicating a write", async () => {
+    const store = new MemoryIdempotencyStore();
+    const adapter = memoryWorkAdapter();
+    const first = createWorkClient({ adapter, idempotencyStore: store, now: () => NOW });
+    const second = createWorkClient({ adapter, idempotencyStore: store, now: () => NOW });
+    const change = await first.prepareCreate({ title: "One distributed write" });
+    const create = adapter.create.bind(adapter);
+    vi.spyOn(adapter, "create").mockImplementation(async (...args) => {
+      await Promise.resolve();
+      return create(...args);
+    });
+
+    const results = await Promise.allSettled([
+      first.commit(change, { idempotencyKey: "distributed-create" }),
+      second.commit(change, { idempotencyKey: "distributed-create" }),
+    ]);
+
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.find((result) => result.status === "rejected")).toMatchObject({
+      status: "rejected",
+      reason: expect.any(WorkInFlightError),
+    });
+    expect(adapter.create).toHaveBeenCalledTimes(1);
+    await expect(second.commit(change, { idempotencyKey: "distributed-create" })).resolves.toMatchObject({ replayed: true });
+  });
+
+  it("marks an uncertain provider failure as ambiguous and blocks blind retries", async () => {
+    const { adapter } = setup();
+    const store = new MemoryIdempotencyStore();
+    const client = createWorkClient({ adapter, idempotencyStore: store, now: () => NOW });
+    const change = await client.prepareCreate({ title: "Maybe created" });
+    vi.spyOn(adapter, "create").mockRejectedValueOnce(new Error("connection lost after send"));
+
+    await expect(client.commit(change, { idempotencyKey: "ambiguous-create" }))
+      .rejects.toBeInstanceOf(WorkAmbiguousCommitError);
+    await expect(client.commit(change, { idempotencyKey: "ambiguous-create" }))
+      .rejects.toBeInstanceOf(WorkAmbiguousCommitError);
+    expect(adapter.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces an ambiguous mutation even when no idempotency store key was supplied", async () => {
+    const { adapter, client } = setup();
+    const change = await client.prepareCreate({ title: "Unknown result" });
+    vi.spyOn(adapter, "create").mockRejectedValueOnce(new Error("connection lost"));
+
+    await expect(client.commit(change)).rejects.toBeInstanceOf(WorkAmbiguousCommitError);
+  });
+
+  it("preserves a successful provider receipt when durable completion fails", async () => {
+    const memory = new MemoryIdempotencyStore();
+    const store: IdempotencyStore = {
+      acquire: (key, intent) => memory.acquire(key, intent),
+      complete: async () => { throw new Error("database unavailable"); },
+      abandon: (key, leaseId, outcome) => memory.abandon(key, leaseId, outcome),
+    };
+    const adapter = memoryWorkAdapter();
+    const client = createWorkClient({ adapter, idempotencyStore: store, now: () => NOW });
+    const change = await client.prepareCreate({ title: "Provider succeeded" });
+
+    await expect(client.commit(change, { idempotencyKey: "lost-receipt" })).rejects.toMatchObject({
+      name: "WorkAmbiguousCommitError",
+      details: {
+        idempotencyKey: "lost-receipt",
+        result: expect.objectContaining({ item: expect.objectContaining({ title: "Provider succeeded" }) }),
+      },
+    });
+    await expect(client.commit(change, { idempotencyKey: "lost-receipt" }))
+      .rejects.toBeInstanceOf(WorkAmbiguousCommitError);
     expect(adapter.calls.filter((call) => call.operation === "create")).toHaveLength(1);
   });
 });
@@ -361,24 +438,6 @@ describe("commit", () => {
     expect(adapter.calls).toHaveLength(0);
   });
 
-  it("fails closed for legacy idempotency records without an intent binding", async () => {
-    const legacy = new Map<string, CommitResult>();
-    const store: IdempotencyStore = {
-      get: (key) => legacy.get(key),
-      set: (key, result) => { legacy.set(key, result); },
-    };
-    const adapter = memoryWorkAdapter();
-    const client = createWorkClient({ adapter, idempotencyStore: store, now: () => NOW });
-    const change = await client.prepareCreate({ title: "Legacy" });
-    legacy.set("memory:legacy-key", {
-      action: "create",
-      item: workItemFixture({ title: "Legacy" }),
-      replayed: false,
-      committedAt: NOW.toISOString(),
-    });
-    await expect(client.commit(change, { idempotencyKey: "legacy-key" })).rejects.toBeInstanceOf(WorkConflictError);
-  });
-
   it("rejects unknown runtime actions instead of treating them as comments", async () => {
     const { adapter, client } = setup();
     const original = await client.prepareCreate({ title: "Base" });
@@ -390,16 +449,17 @@ describe("commit", () => {
   });
 
   it("namespaces idempotency keys by provider and supports async stores", async () => {
-    const results = new Map<string, CommitResult>();
+    const memory = new MemoryIdempotencyStore();
     const store: IdempotencyStore = {
-      get: vi.fn(async (key) => results.get(key)),
-      set: vi.fn(async (key, result) => { results.set(key, result); }),
+      acquire: vi.fn(async (key, intent) => memory.acquire(key, intent)),
+      complete: vi.fn(async (key, leaseId, result) => { memory.complete(key, leaseId, result); }),
+      abandon: vi.fn(async (key, leaseId, outcome) => { memory.abandon(key, leaseId, outcome); }),
     };
     const adapter = memoryWorkAdapter();
     const client = createWorkClient({ adapter, idempotencyStore: store, now: () => NOW });
     await client.commit(await client.prepareCreate({ title: "Stored" }), { idempotencyKey: "key" });
-    expect(store.get).toHaveBeenCalledWith("memory:key");
-    expect(store.set).toHaveBeenCalledWith("memory:key", expect.objectContaining({ action: "create" }));
+    expect(store.acquire).toHaveBeenCalledWith("memory:key", expect.stringMatching(/^[a-f0-9]{64}$/));
+    expect(store.complete).toHaveBeenCalledWith("memory:key", expect.any(String), expect.objectContaining({ action: "create" }));
   });
 
   it.each(["", "  "])("rejects empty idempotency key %j before mutation", async (idempotencyKey) => {

@@ -40,6 +40,8 @@ export interface AzureDevOpsWorkAdapterOptions {
   defaultWorkItemType?: string;
   /** Maps provider state names to normalized Work SDK states. Keys are case-insensitive. */
   stateMap?: Readonly<Record<string, WorkItemState>>;
+  /** Maps normalized write intents to one concrete tenant state name. */
+  stateNameByCanonical?: Readonly<Partial<Record<Exclude<WorkItemState, "unknown">, string>>>;
   /** Maps provider work-item type names to normalized Work SDK kinds. Keys are case-insensitive. */
   workItemTypeMap?: Readonly<Record<string, WorkItemKind>>;
   /** Maps normalized Work SDK kinds to tenant-specific work-item types for creates. */
@@ -286,7 +288,12 @@ function verifyApplied(item: WorkItem, input: CreateWorkItemInput | UpdateWorkIt
   const mismatches: Array<{ field: string; expected: unknown; actual: unknown }> = [];
   if (input.title !== undefined && item.title !== input.title) mismatches.push({ field: "title", expected: input.title, actual: item.title });
   if (input.description !== undefined && (item.description ?? null) !== input.description) mismatches.push({ field: "description", expected: input.description, actual: item.description ?? null });
-  if (input.state !== undefined && item.stateName.toLowerCase() !== input.state.toLowerCase()) mismatches.push({ field: "state", expected: input.state, actual: item.stateName });
+  if (input.state !== undefined) {
+    const requested = input.state.toLowerCase();
+    const canonical = ["backlog", "unstarted", "started", "completed", "canceled", "unknown"].includes(requested);
+    const actual = canonical ? item.state : item.stateName.toLowerCase();
+    if (actual !== requested) mismatches.push({ field: "state", expected: input.state, actual: canonical ? item.state : item.stateName });
+  }
   if (input.priority !== undefined && item.priority !== input.priority) mismatches.push({ field: "priority", expected: input.priority, actual: item.priority });
   if (input.labels !== undefined) {
     const expected = [...input.labels].sort();
@@ -309,6 +316,26 @@ export function azureDevOpsWorkAdapter(options: AzureDevOpsWorkAdapterOptions): 
   const authorization = options.auth?.type === "pat"
     ? `Basic ${Buffer.from(`:${options.auth.token}`).toString("base64")}`
     : options.auth?.type === "entra" ? `Bearer ${options.auth.token}` : undefined;
+
+  const stateForWrite = (requested: string): string => {
+    const normalized = requested.toLowerCase();
+    const canonical = ["backlog", "unstarted", "started", "completed", "canceled", "unknown"].includes(normalized);
+    if (!canonical) {
+      return [...states.keys()].find((name) => name.toLowerCase() === normalized) ?? requested;
+    }
+    const explicit = options.stateNameByCanonical?.[normalized as Exclude<WorkItemState, "unknown">];
+    if (explicit) return explicit;
+    const matches = [...states.entries()]
+      .filter(([, mapped]) => mapped === normalized)
+      .map(([name]) => name);
+    if (matches.length === 1) return matches[0]!;
+    throw new WorkValidationError(
+      matches.length === 0
+        ? `Azure DevOps has no state mapped to '${requested}'`
+        : `Azure DevOps state '${requested}' maps to multiple provider states`,
+      { provider: "azure-devops", details: { field: "state", value: requested, candidates: matches } },
+    );
+  };
 
   const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
     throwIfAborted(init.signal ?? undefined);
@@ -347,7 +374,7 @@ export function azureDevOpsWorkAdapter(options: AzureDevOpsWorkAdapterOptions): 
         if (field(current!, "System.Description") !== undefined) patch.push({ op: "remove", path: "/fields/System.Description" });
       } else patch.push({ op: "add", path: "/fields/System.Description", value: input.description });
     }
-    if (input.state !== undefined) patch.push({ op: "add", path: "/fields/System.State", value: input.state });
+    if (input.state !== undefined) patch.push({ op: "add", path: "/fields/System.State", value: stateForWrite(input.state) });
     if (input.priority !== undefined) {
       if (input.priority === "none") {
         if (!creating && field(current!, "Microsoft.VSTS.Common.Priority") !== undefined) patch.push({ op: "remove", path: "/fields/Microsoft.VSTS.Common.Priority" });
@@ -379,6 +406,7 @@ export function azureDevOpsWorkAdapter(options: AzureDevOpsWorkAdapterOptions): 
       create: true, update: true, comments: true, labels: true, multipleAssignees: false,
       priorities: true, parentLinks: true, states: true, customStates: true, search: true,
       optimisticConcurrency: true,
+      concurrency: { update: "atomic", comment: "preflight" } as const,
     }),
 
     async list(input: ListWorkItemsInput = {}, callOptions): Promise<WorkPage<WorkItem>> {

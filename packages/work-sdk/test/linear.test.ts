@@ -22,6 +22,13 @@ function operation(init?: RequestInit): { query: string; variables: Record<strin
 }
 
 describe("Linear adapter", () => {
+  it("rejects ambiguous credentials and reports read-only create capability without a team", () => {
+    expect(() => linearWorkAdapter({ apiKey: "key", accessToken: "token" })).toThrow("either apiKey or accessToken");
+    expect(() => linearWorkAdapter({ apiKey: " " })).toThrow("must not be empty");
+    expect(linearWorkAdapter({ apiKey: "key" }).capabilities.create).toBe(false);
+    expect(linearWorkAdapter({ apiKey: "key", teamId: "team-1" }).capabilities.create).toBe(true);
+  });
+
   it("maps workflow state/priority and cursor pagination with filters", async () => {
     const fetcher = vi.fn<WorkFetch>(async (_url, init) => {
       const request = operation(init);
@@ -37,6 +44,13 @@ describe("Linear adapter", () => {
     expect(page.items[0]).toMatchObject({ identifier: "ENG-42", state: "started", priority: "high" });
     expect(page.nextCursor).toBe("cursor-2");
     expect(new Headers(fetcher.mock.calls[0]![1]?.headers).get("authorization")).toBe("lin_api");
+  });
+
+  it("returns no items for the unrepresentable unknown state without dropping the filter", async () => {
+    const fetcher = vi.fn<WorkFetch>();
+    const adapter = linearWorkAdapter({ fetch: fetcher });
+    await expect(adapter.list({ state: "unknown" })).resolves.toEqual({ items: [] });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("resolves labels and states, creates, then reads back", async () => {
