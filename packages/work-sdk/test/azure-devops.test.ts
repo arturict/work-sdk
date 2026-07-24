@@ -110,6 +110,26 @@ describe("Azure DevOps adapter", () => {
     expect(await adapter.create({ title: "Ship SDK", kind: "story", labels: ["sdk", "azure"], priority: "high" })).toMatchObject({ kind: "story", title: "Ship SDK" });
   });
 
+  it("requires an explicit inverse map for ambiguous canonical state writes", async () => {
+    const unsafe = azureDevOpsWorkAdapter({ ...baseOptions, fetch: vi.fn<WorkFetch>() });
+    await expect(unsafe.create({ title: "Done", state: "completed" })).rejects.toBeInstanceOf(WorkValidationError);
+
+    const fetcher = vi.fn<WorkFetch>(async (_url, init) => {
+      expect(JSON.parse(String(init?.body))).toContainEqual({
+        op: "add",
+        path: "/fields/System.State",
+        value: "Closed",
+      });
+      return json(item({ fields: { "System.Title": "Done", "System.State": "Closed" } }), { status: 201 });
+    });
+    const adapter = azureDevOpsWorkAdapter({
+      ...baseOptions,
+      stateNameByCanonical: { completed: "Closed" },
+      fetch: fetcher,
+    });
+    await expect(adapter.create({ title: "Done", state: "completed" })).resolves.toMatchObject({ state: "completed" });
+  });
+
   it("uses a revision test and replaces parent relations atomically", async () => {
     const calls: Array<{ method: string; body?: unknown }> = [];
     const fetcher = vi.fn<WorkFetch>(async (_url, init) => {

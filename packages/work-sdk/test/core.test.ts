@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   WorkAuthenticationError,
+  WorkAmbiguousCommitError,
   WorkAuthorizationError,
   WorkConflictError,
   WorkError,
+  WorkInFlightError,
   WorkNotFoundError,
   WorkRateLimitError,
   WorkUnsupportedError,
@@ -55,6 +57,8 @@ describe("error taxonomy", () => {
     [WorkAuthenticationError, "authentication"],
     [WorkAuthorizationError, "authorization"],
     [WorkConflictError, "conflict"],
+    [WorkInFlightError, "in_flight"],
+    [WorkAmbiguousCommitError, "ambiguous"],
     [WorkNotFoundError, "not_found"],
     [WorkRateLimitError, "rate_limit"],
     [WorkUnsupportedError, "unsupported"],

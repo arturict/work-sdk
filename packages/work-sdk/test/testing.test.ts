@@ -111,11 +111,11 @@ describe("memoryWorkAdapter", () => {
 
   it("maps create inputs without leaking caller mutations", async () => {
     const adapter = memoryWorkAdapter({ now: () => new Date("2026-02-03T04:05:06.000Z") });
-    const input = { title: "New item", labels: ["one"], assigneeIds: ["ada"], project: "WEB", priority: "high" as const };
+    const input = { title: "New item", labels: ["one"], assigneeIds: ["ada"], project: "WEB", priority: "high" as const, state: "completed" };
     const created = await adapter.create(input);
     input.labels[0] = "mutated";
     expect(created).toMatchObject({
-      identifier: "MEM-1", title: "New item", priority: "high", revision: "1",
+      identifier: "MEM-1", title: "New item", state: "completed", priority: "high", revision: "1",
       createdAt: "2026-02-03T04:05:06.000Z",
       project: { id: "WEB", key: "WEB", name: "WEB" },
       assignees: [{ id: "ada" }], labels: [{ name: "one" }],

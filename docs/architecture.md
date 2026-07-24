@@ -33,15 +33,15 @@ Adapters expose an opaque revision string. Depending on the provider it may deri
 
 ## Capability model
 
-Provider support is explicit. Capabilities cover create, update, comments, labels, multiple assignees, priorities, parent links, custom states, search, and optimistic concurrency. A field that cannot be represented produces a preparation warning instead of disappearing silently.
+Provider support is explicit. Capabilities cover create, update, comments, labels, multiple assignees, priorities, parent links, custom states, search, and concurrency guarantees. `concurrency.update` and `concurrency.comment` distinguish `atomic`, `preflight`, and `none`; the legacy `optimisticConcurrency` Boolean remains deprecated. A field that cannot be represented produces a preparation warning instead of disappearing silently.
 
 ## Idempotency
 
-Idempotency is a core contract because not every provider offers a documented native primitive. The built-in memory store is suitable for scripts and tests. Production distributed systems should implement `IdempotencyStore` using a transactional database or durable key-value store.
+Idempotency is a core contract because not every provider offers a documented native primitive. The built-in memory store is suitable for scripts and tests. Production distributed systems implement the atomic `acquire → complete | abandon` protocol using a transactional database, compare-and-swap, or conditional durable write. An uncertain provider response becomes an `ambiguous` record and cannot be retried until application reconciliation resolves it.
 
 ## Package boundaries
 
-Version 0.1 publishes one zero-runtime-dependency package with stable subpath exports:
+The v0.x line publishes one zero-runtime-dependency package with stable subpath exports:
 
 - `work-sdk` — core client, types, errors, stores
 - `work-sdk/github` — GitHub Issues adapter

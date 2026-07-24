@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { WorkConflictError, WorkRateLimitError } from "../src/errors.js";
+import { WorkConflictError, WorkRateLimitError, WorkValidationError } from "../src/errors.js";
 import type { WorkFetch } from "../src/http.js";
 import { jiraWorkAdapter } from "../src/jira.js";
 
@@ -20,6 +20,17 @@ function issue(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Jira adapter", () => {
+  it("rejects partial or ambiguous authentication configuration", () => {
+    expect(() => jiraWorkAdapter({ baseUrl: "" })).toThrow("baseUrl must not be empty");
+    expect(() => jiraWorkAdapter({ baseUrl: "https://acme.atlassian.net", email: "a@b.dev" })).toThrow("requires both");
+    expect(() => jiraWorkAdapter({
+      baseUrl: "https://acme.atlassian.net",
+      email: "a@b.dev",
+      apiToken: "token",
+      accessToken: "oauth",
+    })).toThrow("either accessToken");
+  });
+
   it("maps ADF and sends Basic authentication", async () => {
     const fetcher = vi.fn<WorkFetch>(async () => json(issue()));
     const adapter = jiraWorkAdapter({ baseUrl: "https://acme.atlassian.net/", email: "a@b.dev", apiToken: "token", fetch: fetcher });
@@ -50,16 +61,38 @@ describe("Jira adapter", () => {
       if (path === "/rest/api/3/issue" && init?.method === "POST") {
         const fields = JSON.parse(String(init.body)).fields;
         expect(fields.description).toEqual({ type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: "Details" }] }] });
+        expect(fields.priority).toEqual({ name: "Dringend" });
         return json({ id: "10042", key: "ENG-42", self: "x" }, { status: 201 });
       }
       if (path.endsWith("/transitions") && init?.method !== "POST") return json({ transitions: [{ id: "31", name: "Done", to: { name: "Done" } }] });
       if (path.endsWith("/transitions")) return new Response(null, { status: 204 });
       return json(issue({ fields: { ...issue().fields, status: { id: "4", name: "Done", statusCategory: { key: "done" } } } }));
     });
-    const adapter = jiraWorkAdapter({ baseUrl: "https://acme.atlassian.net", projectKey: "ENG", fetch: fetcher });
-    const created = await adapter.create({ title: "Fix race", description: "Details", kind: "bug", state: "Done" });
+    const adapter = jiraWorkAdapter({
+      baseUrl: "https://acme.atlassian.net",
+      projectKey: "ENG",
+      priorityNameByCanonical: { urgent: "Dringend" },
+      fetch: fetcher,
+    });
+    const created = await adapter.create({ title: "Fix race", description: "Details", kind: "bug", priority: "urgent", state: "Done" });
     expect(created.state).toBe("completed");
     expect(paths).toEqual(["POST /rest/api/3/issue", "GET /rest/api/3/issue/ENG-42/transitions", "POST /rest/api/3/issue/ENG-42/transitions", "GET /rest/api/3/issue/ENG-42"]);
+  });
+
+  it("fails closed when a canonical state matches multiple workflow transitions", async () => {
+    const fetcher = vi.fn<WorkFetch>(async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith("/transitions") && init?.method !== "POST") {
+        return json({ transitions: [
+          { id: "31", name: "Start work", to: { name: "Doing", statusCategory: { key: "indeterminate" } } },
+          { id: "32", name: "Start review", to: { name: "Review", statusCategory: { key: "indeterminate" } } },
+        ] });
+      }
+      return json(issue());
+    });
+    const adapter = jiraWorkAdapter({ baseUrl: "https://acme.atlassian.net", fetch: fetcher });
+    await expect(adapter.update("ENG-42", { state: "started" })).rejects.toBeInstanceOf(WorkValidationError);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("fails before PUT when the prepared revision is stale", async () => {

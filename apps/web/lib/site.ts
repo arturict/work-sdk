@@ -6,7 +6,7 @@ export const site = {
   name: "Work SDK",
   title: "Work SDK — TypeScript SDK for every work tracker",
   description:
-    "The agent-safe TypeScript SDK for GitHub, GitLab, Linear, Jira, and Azure DevOps. Preview changes, prevent duplicate writes, and commit with confidence.",
+    "The agent-safe TypeScript SDK for GitHub, GitLab, Linear, Jira, and Azure DevOps. Preview changes, atomically coordinate retries, and surface ambiguous writes.",
   url: siteUrl,
   github: "https://github.com/arturict/work-sdk",
   npm: "https://www.npmjs.com/package/work-sdk",

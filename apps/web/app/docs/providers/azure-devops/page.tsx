@@ -32,6 +32,11 @@ const customProcess = `const adapter = azureDevOps({
     "Released": "completed",
   },
 
+  // Normalized write state → one concrete tenant state
+  stateNameByCanonical: {
+    completed: "Released",
+  },
+
   // Provider type name → normalized read kind
   workItemTypeMap: {
     "Customer Request": "story",
@@ -69,7 +74,7 @@ export default function AzureDevOpsPage() {
     <section id="setup"><h2>Setup</h2><CodeBlock code={entra} label="azure-work.ts" /><p>The adapter targets Azure DevOps REST API 7.1. The organization and project are path-scoped, so an accidentally supplied foreign project is rejected rather than silently redirected.</p></section>
     <section id="authentication"><h2>Authentication</h2><h3>Microsoft Entra ID</h3><p>Use Entra access tokens for production applications, service principals, or managed identities.</p><CodeBlock code={`auth: { type: "entra", token: accessToken }`} /><h3>Personal access token</h3><p>PATs are convenient for local scripts and prototypes. They are sent as Basic credentials with an empty username.</p><CodeBlock code={`auth: { type: "pat", token: process.env.AZURE_DEVOPS_PAT! }`} /><DocsCallout tone="warning"><p>PATs are long-lived credentials. Prefer Entra tokens in production, scope credentials to work-item access, rotate them, and keep them out of browser code and agent context.</p></DocsCallout></section>
     <section id="custom-processes"><h2>Custom processes</h2><p>Azure organizations can rename states and introduce custom work-item types. Reads must map provider names to the portable model; creates need the reverse mapping. Work SDK keeps both directions explicit.</p><CodeBlock code={customProcess} label="custom-process.ts" /><p>Built-in defaults cover common Agile, Scrum, and Basic process names. Custom entries extend or override those case-insensitive defaults.</p></section>
-    <section id="operations"><h2>Read, search, and write</h2><CodeBlock code={operations} label="azure-operations.ts" /><p>Write <code>state</code> values are provider-native on purpose. Work SDK does not guess whether normalized <code>completed</code> means <em>Done</em>, <em>Closed</em>, <em>Released</em>, or another custom state.</p></section>
+    <section id="operations"><h2>Read, search, and write</h2><CodeBlock code={operations} label="azure-operations.ts" /><p>Provider-native state values remain accepted. Canonical writes such as <code>completed</code> use <code>stateNameByCanonical</code>; if several tenant names map to the same canonical state and no inverse is configured, the adapter fails as ambiguous instead of guessing.</p></section>
     <section id="fields"><h2>Field mapping</h2><div className="docs-table-wrap"><table><thead><tr><th>Work SDK</th><th>Azure DevOps</th><th>Notes</th></tr></thead><tbody>
       <tr><td><code>title</code></td><td><code>System.Title</code></td><td>Required on create</td></tr><tr><td><code>description</code></td><td><code>System.Description</code></td><td>Returned as provider HTML</td></tr><tr><td><code>stateName</code></td><td><code>System.State</code></td><td>Exact provider state</td></tr><tr><td><code>priority</code></td><td><code>Microsoft.VSTS.Common.Priority</code></td><td>urgent/high/medium/low → 1/2/3/4</td></tr><tr><td><code>assigneeIds[0]</code></td><td><code>System.AssignedTo</code></td><td>Identity ID, email, or resolvable name</td></tr><tr><td><code>labels</code></td><td><code>System.Tags</code></td><td>Semicolon-separated provider field</td></tr><tr><td><code>parentId</code></td><td>Hierarchy-Reverse relation</td><td>Existing parent replaced atomically</td></tr><tr><td><code>revision</code></td><td><code>rev</code></td><td>Opaque string to consumers</td></tr>
     </tbody></table></div></section>

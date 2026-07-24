@@ -22,7 +22,13 @@ describe("GitHub adapter", () => {
     const fetcher = vi.fn<WorkFetch>(async () => json(issue()));
     const adapter = githubWorkAdapter({ owner: "acme", repo: "app", token: "secret", fetch: fetcher });
     const item = await adapter.get("42");
-    expect(item).toMatchObject({ id: "42", identifier: "acme/app#42", state: "unstarted", priority: "none", assignees: [{ id: "7" }] });
+    expect(item).toMatchObject({
+      id: "42",
+      identifier: "acme/app#42",
+      state: "unstarted",
+      priority: "none",
+      assignees: [{ id: "octo", handle: "octo" }],
+    });
     const [url, init] = fetcher.mock.calls[0]!;
     expect(url).toBe("https://api.github.com/repos/acme/app/issues/42");
     expect(new Headers(init?.headers).get("authorization")).toBe("Bearer secret");
@@ -34,13 +40,19 @@ describe("GitHub adapter", () => {
       headers: { link: '<https://api.github.com/repositories/1/issues?page=2>; rel="next"' },
     }));
     const adapter = githubWorkAdapter({ owner: "acme", repo: "app", fetch: fetcher });
-    const page = await adapter.list({ limit: 2, labels: ["bug", "agent"], state: ["started", "completed"] });
+    const page = await adapter.list({ limit: 2, labels: ["bug", "agent"], state: ["unstarted", "completed"] });
     expect(page.items.map((item) => item.id)).toEqual(["42"]);
     expect(page.nextCursor).toBe("github:page:2");
     const url = String(fetcher.mock.calls[0]![0]);
     expect(url).toContain("per_page=2");
     expect(url).toContain("labels=bug%2Cagent");
     expect(url).toContain("state=all");
+  });
+
+  it("does not return open issues as started", async () => {
+    const fetcher = vi.fn<WorkFetch>(async () => json([issue()]));
+    const adapter = githubWorkAdapter({ owner: "acme", repo: "app", fetch: fetcher });
+    await expect(adapter.list({ state: "started" })).resolves.toMatchObject({ items: [] });
   });
 
   it("creates with REST semantics and reads back the canonical issue", async () => {

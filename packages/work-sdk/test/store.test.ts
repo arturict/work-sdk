@@ -11,15 +11,29 @@ const result: CommitResult = {
 };
 
 describe("MemoryIdempotencyStore", () => {
-  it("stores, replaces, and clears results", () => {
+  it("claims, completes, replays, conflicts, and clears records", () => {
     const store = new MemoryIdempotencyStore();
-    expect(store.get("missing")).toBeUndefined();
-    store.set("key", result);
-    expect(store.get("key")).toBe(result);
-    const replacement = { ...result, committedAt: "2026-01-02T00:00:00.000Z" };
-    store.set("key", replacement);
-    expect(store.get("key")).toBe(replacement);
+    const claim = store.acquire("key", "intent-1");
+    expect(claim).toMatchObject({ status: "acquired", leaseId: expect.any(String) });
+    expect(store.acquire("key", "intent-1")).toEqual({ status: "in-flight" });
+    expect(store.acquire("key", "intent-2")).toEqual({ status: "conflict" });
+    if (claim.status !== "acquired") throw new Error("expected claim");
+    store.complete("key", claim.leaseId, result);
+    expect(store.acquire("key", "intent-1")).toEqual({ status: "completed", result });
     store.clear();
-    expect(store.get("key")).toBeUndefined();
+    expect(store.acquire("key", "intent-1")).toMatchObject({ status: "acquired" });
+  });
+
+  it("releases retryable attempts and preserves ambiguous ones", () => {
+    const store = new MemoryIdempotencyStore();
+    const retryable = store.acquire("retryable", "intent");
+    if (retryable.status !== "acquired") throw new Error("expected claim");
+    store.abandon("retryable", retryable.leaseId, "retryable");
+    expect(store.acquire("retryable", "intent")).toMatchObject({ status: "acquired" });
+
+    const ambiguous = store.acquire("ambiguous", "intent");
+    if (ambiguous.status !== "acquired") throw new Error("expected claim");
+    store.abandon("ambiguous", ambiguous.leaseId, "ambiguous");
+    expect(store.acquire("ambiguous", "intent")).toEqual({ status: "ambiguous" });
   });
 });

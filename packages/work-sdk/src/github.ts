@@ -106,7 +106,7 @@ function githubError(response: Response, body: unknown): never {
 }
 
 function user(value: GitHubUser): WorkUser {
-  return { id: String(value.id), displayName: value.login, ...(value.avatar_url ? { avatarUrl: value.avatar_url } : {}), provider: "github", raw: value };
+  return { id: value.login, handle: value.login, displayName: value.login, ...(value.avatar_url ? { avatarUrl: value.avatar_url } : {}), provider: "github", raw: value };
 }
 
 function kind(value: GitHubIssue): WorkItemKind {
@@ -261,6 +261,7 @@ export function githubWorkAdapter(options: GitHubWorkAdapterOptions): WorkAdapte
       create: true, update: true, comments: true, labels: true, multipleAssignees: true,
       priorities: false, parentLinks: false, states: true, customStates: false, search: false,
       optimisticConcurrency: true,
+      concurrency: { update: "preflight", comment: "preflight" } as const,
     }),
     async list(input: ListWorkItemsInput = {}, callOptions): Promise<WorkPage<WorkItem>> {
       throwIfAborted(callOptions?.signal);
@@ -272,13 +273,21 @@ export function githubWorkAdapter(options: GitHubWorkAdapterOptions): WorkAdapte
       const params = new URLSearchParams({ per_page: String(limit), page: String(page) });
       if (input.assignee) params.set("assignee", input.assignee);
       if (input.labels?.length) params.set("labels", input.labels.join(","));
+      const requestedStates = input.state === undefined
+        ? undefined
+        : new Set(Array.isArray(input.state) ? input.state : [input.state]);
       if (input.state !== undefined) {
-        const states = (Array.isArray(input.state) ? input.state : [input.state]).map((item) => githubState(item).state);
+        const queryable = [...requestedStates!].filter((item) => item !== "unknown");
+        if (queryable.length === 0) return { items: [] };
+        const states = queryable.map((item) => githubState(item).state);
         if (states.every((item) => item === states[0])) params.set("state", states[0]!);
         else params.set("state", "all");
       }
       const { body, response } = await request<GitHubIssue[]>(`${repoPath}/issues?${params}`, { ...(callOptions?.signal ? { signal: callOptions.signal } : {}) });
-      const items = body.filter((item) => !item.pull_request).map((item) => mapIssue(item, options.owner, options.repo));
+      const items = body
+        .filter((item) => !item.pull_request)
+        .map((item) => mapIssue(item, options.owner, options.repo))
+        .filter((item) => requestedStates?.has(item.state) ?? true);
       const hasNext = /rel="next"/.test(response.headers.get("link") ?? "") || body.length === limit;
       return { items, ...(hasNext ? { nextCursor: `github:page:${page + 1}` } : {}) };
     },

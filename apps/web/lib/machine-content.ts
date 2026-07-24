@@ -4,7 +4,7 @@ export const markdownHomepage = `# Work SDK
 
 > The agent-safe TypeScript SDK for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps.
 
-Work SDK is an open-source TypeScript library for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps. It provides one normalized API for reading and writing work items, with inspectable prepared changes, idempotent commits, optimistic concurrency, capability discovery, and normalized errors.
+Work SDK is an open-source TypeScript library for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps. It provides one normalized API for reading and writing work items, with inspectable prepared changes, atomic idempotency coordination, explicit concurrency guarantees, capability discovery, and normalized errors.
 
 ## Install
 
@@ -72,7 +72,7 @@ Work SDK is an open-source TypeScript library for safely reading and writing Git
 - A coding agent must create, update, comment on, or transition work items.
 - Application code needs to support multiple trackers without provider conditionals at every call site.
 - A side effect should be inspectable before it is committed.
-- Retries must not duplicate comments or updates.
+- Duplicate-risk must be coordinated across workers and uncertain outcomes must stop blind retries.
 - A write must fail if an item changed after it was inspected.
 
 ## Safe write rules
@@ -84,6 +84,7 @@ Work SDK is an open-source TypeScript library for safely reading and writing Git
 5. Commit externally visible writes with a stable \`idempotencyKey\`.
 6. On \`WorkConflictError\`, re-read and prepare a new change. Do not force the stale write.
 7. Check \`work.capabilities\` before exposing provider-dependent actions.
+8. On \`WorkAmbiguousCommitError\`, reconcile provider state before any retry.
 
 ## Credentials
 
@@ -104,6 +105,8 @@ Keep GitHub and GitLab tokens, Linear API keys, Jira API tokens, Azure DevOps En
 - \`WorkNotFoundError\`
 - \`WorkRateLimitError\`
 - \`WorkConflictError\`
+- \`WorkInFlightError\`
+- \`WorkAmbiguousCommitError\`
 - \`WorkUnsupportedError\`
 - \`WorkValidationError\`
 

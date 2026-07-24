@@ -16,6 +16,8 @@ export interface JiraWorkAdapterOptions {
   email?: string;
   apiToken?: string;
   accessToken?: string;
+  /** Maps normalized priorities to tenant-specific or localized priority names. */
+  priorityNameByCanonical?: Readonly<Partial<Record<"urgent" | "high" | "medium" | "low", string>>>;
   fetch?: WorkFetch;
 }
 
@@ -95,12 +97,20 @@ function jiraPriority(value?: { id: string; name: string } | null): WorkItemPrio
   return value ? "unknown" : "none";
 }
 
-function priorityName(value: WorkItemPriority): string | undefined {
-  return ({ urgent: "Highest", high: "High", medium: "Medium", low: "Low" } as Partial<Record<WorkItemPriority, string>>)[value];
+function priorityName(
+  value: WorkItemPriority,
+  overrides?: JiraWorkAdapterOptions["priorityNameByCanonical"],
+): string | undefined {
+  const normalized = value as "urgent" | "high" | "medium" | "low";
+  return overrides?.[normalized]
+    ?? ({ urgent: "Highest", high: "High", medium: "Medium", low: "Low" } as Partial<Record<WorkItemPriority, string>>)[value];
 }
 
-function requirePriorityName(value: WorkItemPriority): string {
-  const name = priorityName(value);
+function requirePriorityName(
+  value: WorkItemPriority,
+  overrides?: JiraWorkAdapterOptions["priorityNameByCanonical"],
+): string {
+  const name = priorityName(value, overrides);
   if (!name) throw new WorkValidationError(`Unknown Jira priority: ${value}`, { provider: "jira", details: { field: "priority" } });
   return name;
 }
@@ -169,6 +179,17 @@ function jiraError(response: Response, body: unknown): never {
 }
 
 export function jiraWorkAdapter(options: JiraWorkAdapterOptions): WorkAdapter {
+  if (!options.baseUrl.trim()) throw new WorkValidationError("baseUrl must not be empty", { provider: "jira" });
+  const hasBasicPart = options.email !== undefined || options.apiToken !== undefined;
+  if (options.accessToken !== undefined && hasBasicPart) {
+    throw new WorkValidationError("Configure either accessToken or email/apiToken, not both", { provider: "jira" });
+  }
+  if ((options.email === undefined) !== (options.apiToken === undefined)) {
+    throw new WorkValidationError("Jira Basic authentication requires both email and apiToken", { provider: "jira" });
+  }
+  for (const [field, value] of [["accessToken", options.accessToken], ["email", options.email], ["apiToken", options.apiToken]] as const) {
+    if (value !== undefined && !value.trim()) throw new WorkValidationError(`${field} must not be empty`, { provider: "jira" });
+  }
   const fetcher = options.fetch ?? globalThis.fetch;
   const base = options.baseUrl.replace(/\/$/, "");
   const authorization = options.accessToken ? `Bearer ${options.accessToken}`
@@ -201,11 +222,23 @@ export function jiraWorkAdapter(options: JiraWorkAdapterOptions): WorkAdapter {
     const wanted = requested.toLowerCase();
     const category = ["backlog", "unstarted"].includes(wanted) ? "new" : wanted === "started" ? "indeterminate"
       : ["completed", "canceled", "cancelled"].includes(wanted) ? "done" : undefined;
-    const candidates = result.transitions.filter((item) => [item.id, item.name, item.to?.id, item.to?.name].some((value) => value?.toLowerCase() === wanted)
-      || (category !== undefined && item.to?.statusCategory?.key?.toLowerCase() === category));
-    const match = wanted.startsWith("cancel")
-      ? candidates.find((item) => /cancel|declin|won't|wont|duplicate/.test(`${item.name} ${item.to?.name}`.toLowerCase())) ?? candidates[0]
-      : candidates[0];
+    const exact = result.transitions.filter((item) =>
+      [item.id, item.name, item.to?.id, item.to?.name].some((value) => value?.toLowerCase() === wanted));
+    const categoryCandidates = category === undefined
+      ? []
+      : result.transitions.filter((item) => item.to?.statusCategory?.key?.toLowerCase() === category);
+    const candidates = exact.length ? exact : categoryCandidates;
+    const cancelCandidates = wanted.startsWith("cancel")
+      ? candidates.filter((item) => /cancel|declin|won't|wont|duplicate/.test(`${item.name} ${item.to?.name}`.toLowerCase()))
+      : candidates;
+    const resolved = cancelCandidates.length ? cancelCandidates : candidates;
+    if (resolved.length > 1) {
+      throw new WorkValidationError(`Jira transition '${requested}' is ambiguous`, {
+        provider: "jira",
+        details: { candidates: resolved },
+      });
+    }
+    const match = resolved[0];
     if (!match) throw new WorkValidationError(`Jira transition '${requested}' is not available`, { provider: "jira", details: { transitions: result.transitions } });
     await request(`/rest/api/3/issue/${encodeURIComponent(id)}/transitions`, { method: "POST", body: JSON.stringify({ transition: { id: match.id } }), ...(signal ? { signal } : {}) });
   };
@@ -216,6 +249,7 @@ export function jiraWorkAdapter(options: JiraWorkAdapterOptions): WorkAdapter {
       create: true, update: true, comments: true, labels: true, multipleAssignees: false,
       priorities: true, parentLinks: true, states: true, customStates: true, search: true,
       optimisticConcurrency: true,
+      concurrency: { update: "preflight", comment: "preflight" } as const,
     }),
     async list(input: ListWorkItemsInput = {}, callOptions): Promise<WorkPage<WorkItem>> {
       throwIfAborted(callOptions?.signal);
@@ -239,7 +273,15 @@ export function jiraWorkAdapter(options: JiraWorkAdapterOptions): WorkAdapter {
       const data = await request<{ issues: JiraIssue[]; nextPageToken?: string; isLast?: boolean }>("/rest/api/3/search/jql", {
         method: "POST", body: JSON.stringify(payload), ...(callOptions?.signal ? { signal: callOptions.signal } : {}),
       });
-      return { items: data.issues.map((item) => mapIssue(item, base)), ...(!data.isLast && data.nextPageToken ? { nextCursor: data.nextPageToken } : {}) };
+      const requestedStates = input.state === undefined
+        ? undefined
+        : new Set(Array.isArray(input.state) ? input.state : [input.state]);
+      return {
+        items: data.issues
+          .map((item) => mapIssue(item, base))
+          .filter((item) => requestedStates?.has(item.state) ?? true),
+        ...(!data.isLast && data.nextPageToken ? { nextCursor: data.nextPageToken } : {}),
+      };
     },
     get(id, callOptions) { return get(id, callOptions?.signal); },
     async create(input: CreateWorkItemInput, callOptions) {
@@ -253,7 +295,7 @@ export function jiraWorkAdapter(options: JiraWorkAdapterOptions): WorkAdapter {
       if (input.description !== undefined) fields.description = toAdf(input.description);
       if (input.assigneeIds !== undefined) fields.assignee = input.assigneeIds[0] ? { accountId: input.assigneeIds[0] } : null;
       if (input.labels !== undefined) fields.labels = input.labels;
-      if (input.priority !== undefined && input.priority !== "none") fields.priority = { name: requirePriorityName(input.priority) };
+      if (input.priority !== undefined && input.priority !== "none") fields.priority = { name: requirePriorityName(input.priority, options.priorityNameByCanonical) };
       if (input.parentId !== undefined) fields.parent = { key: input.parentId };
       const created = await request<{ id: string; key: string; self: string }>("/rest/api/3/issue", {
         method: "POST", body: JSON.stringify({ fields }), ...(callOptions?.signal ? { signal: callOptions.signal } : {}),
@@ -274,7 +316,7 @@ export function jiraWorkAdapter(options: JiraWorkAdapterOptions): WorkAdapter {
       if (input.description !== undefined) fields.description = input.description === null ? null : toAdf(input.description);
       if (input.assigneeIds !== undefined) fields.assignee = input.assigneeIds[0] ? { accountId: input.assigneeIds[0] } : null;
       if (input.labels !== undefined) fields.labels = input.labels;
-      if (input.priority !== undefined) fields.priority = input.priority === "none" ? null : { name: requirePriorityName(input.priority) };
+      if (input.priority !== undefined) fields.priority = input.priority === "none" ? null : { name: requirePriorityName(input.priority, options.priorityNameByCanonical) };
       if (input.parentId !== undefined) {
         if (input.parentId === null) update.parent = [{ set: { none: true } }];
         else fields.parent = { key: input.parentId };

@@ -31,6 +31,7 @@ export const fullWorkCapabilities: Readonly<WorkCapabilities> = Object.freeze({
   customStates: true,
   search: true,
   optimisticConcurrency: true,
+  concurrency: { update: "atomic", comment: "preflight" } as const,
 });
 
 export function workItemFixture(overrides: Partial<WorkItem> = {}): WorkItem {
@@ -159,10 +160,10 @@ export function memoryWorkAdapter(options: MemoryWorkAdapterOptions = {}): Memor
     capabilities,
     calls,
     get items() {
-      return itemStore;
+      return new Map([...itemStore].map(([id, item]) => [id, cloneItem(item)]));
     },
     get comments() {
-      return commentStore;
+      return new Map([...commentStore].map(([id, comments]) => [id, structuredClone(comments)]));
     },
 
     async list(input = {}, callOptions): Promise<WorkPage<WorkItem>> {
@@ -209,7 +210,11 @@ export function memoryWorkAdapter(options: MemoryWorkAdapterOptions = {}): Memor
         title: input.title,
         ...(input.description !== undefined ? { description: input.description } : {}),
         kind: input.kind ?? "issue",
-        state: input.state === undefined ? "unstarted" : "unknown",
+        state: input.state === undefined
+          ? "unstarted"
+          : ["backlog", "unstarted", "started", "completed", "canceled", "unknown"].includes(input.state)
+            ? input.state as WorkItem["state"]
+            : "unknown",
         stateName: input.state ?? "Todo",
         priority: input.priority ?? "none",
         ...(input.project ? { project: { id: input.project, key: input.project, name: input.project, provider } } : {}),

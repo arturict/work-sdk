@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.0 — 2026-07-24
+
+- Replaced the distributed-idempotency `get`/`set` recipe with an atomic
+  `acquire`/`complete`/`abandon` contract that prevents two workers from
+  claiming the same intent.
+- Added `WorkInFlightError` and `WorkAmbiguousCommitError`; uncertain provider
+  outcomes now block blind retries and require reconciliation.
+- Added action-specific `atomic`, `preflight`, and `none` concurrency
+  guarantees while retaining the old Boolean as deprecated compatibility data.
+- Made prepared changes discriminated by action and exported `WorkFetch` plus
+  `WorkErrorOptions`.
+- Fixed writable GitHub assignee references and exact normalized state
+  filtering across GitHub, GitLab, Linear, and Jira.
+- Rejected unsafe GitLab closed-state creates, ambiguous Jira transitions, and
+  ambiguous Azure canonical state writes without an explicit inverse map.
+- Validated Linear and Jira authentication configuration eagerly, made Linear
+  create capability reflect `teamId`, and added localized Jira priority maps.
+- Expanded the suite to 185 tests, including independent-client idempotency,
+  ambiguous outcomes, state exactness, workflow ambiguity, and inverse state
+  mapping.
+- Reworked the safety, client, error, Azure, testing, machine-readable, and
+  landing-page documentation to describe real guarantees instead of
+  overpromising exactly-once behavior.
+
 ## 0.3.0 — 2026-07-24
 
 - Added a GitLab.com and GitLab Self-Managed adapter with private-token and OAuth auth, search, pagination, Markdown notes, guarded labels, explicit issue-type maps, readback verification, and optimistic revision checks.

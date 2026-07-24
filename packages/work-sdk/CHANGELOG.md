@@ -1,5 +1,23 @@
 # work-sdk
 
+## 0.4.0
+
+### Minor Changes
+
+- Replace the non-atomic idempotency `get`/`set` contract with an atomic
+  `acquire`/`complete`/`abandon` protocol, add explicit in-flight and ambiguous
+  commit errors, and expose action-specific concurrency guarantees.
+
+  Make prepared changes discriminated by action, export public fetch and error
+  option types, preserve writable GitHub assignee references, enforce exact
+  normalized state filters, reject unsafe GitLab create-state writes, require
+  explicit Azure inverse state mappings when canonical writes are ambiguous, and
+  fail closed on ambiguous Jira transitions.
+
+  Validate Linear and Jira authentication configuration eagerly, make Linear
+  create capability reflect `teamId`, and support localized Jira priority
+  names.
+
 ## 0.3.1
 
 ### Patch Changes

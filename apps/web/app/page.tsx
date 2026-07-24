@@ -29,7 +29,7 @@ const capabilityRows = [
   ["Comments", true, true, true, true, true],
   ["Custom states", false, false, true, true, true],
   ["Multiple assignees", true, false, false, false, false],
-  ["Optimistic concurrency", true, true, true, true, true],
+  ["Atomic update guard", false, false, false, false, true],
 ] as const;
 
 export default function HomePage() {
@@ -51,8 +51,8 @@ export default function HomePage() {
         isAccessibleForFree: true,
         featureList: [
           "Prepared and inspectable work-item changes",
-          "Idempotent commits",
-          "Optimistic concurrency",
+          "Atomic idempotency coordination",
+          "Explicit atomic or preflight concurrency guarantees",
           "Provider capability discovery",
           "Normalized errors",
         ],
@@ -100,7 +100,7 @@ export default function HomePage() {
           <p className="eyebrow"><span className="pulse" /> The safe write layer for coding agents</p>
           <h1>One work SDK for <span>every tracker.</span></h1>
           <p className="hero-summary">
-            Create, update, comment on, and transition work across GitHub, GitLab, Linear, Jira, and Azure DevOps with one typed API — with previews, idempotency, and conflict protection built in.
+            Create, update, comment on, and transition work across GitHub, GitLab, Linear, Jira, and Azure DevOps with one typed API — with previews, atomic retry coordination, and explicit conflict guarantees.
           </p>
           <div className="hero-actions">
             <Link className="button primary" href="/docs/getting-started">Run the 5-minute quickstart <ArrowIcon /></Link>
@@ -108,7 +108,7 @@ export default function HomePage() {
           </div>
           <dl className="hero-proof">
             <div><dt>Preview every write</dt><dd>Inspect exact changes before commit.</dd></div>
-            <div><dt>Safe to retry</dt><dd>Prevent duplicates and stale overwrites.</dd></div>
+            <div><dt>Duplicate-aware</dt><dd>Coordinate workers and stop ambiguous retries.</dd></div>
             <div><dt>Provider-aware</dt><dd>See capabilities and mapping warnings.</dd></div>
           </dl>
         </div>
@@ -131,7 +131,7 @@ export default function HomePage() {
         </div>
         <div className="failure-grid">
           <article><span className="failure-index">01</span><h3>Wrong transition</h3><p>“Done” can mean a state, transition ID, or a closed flag. Resolve intent against the provider before writing.</p></article>
-          <article><span className="failure-index">02</span><h3>Duplicate comment</h3><p>A timeout does not say whether a write succeeded. Idempotency makes retries deterministic.</p></article>
+          <article><span className="failure-index">02</span><h3>Duplicate comment</h3><p>A timeout does not say whether a write succeeded. Atomic claims block concurrent duplicates; ambiguous outcomes stop retries for reconciliation.</p></article>
           <article><span className="failure-index">03</span><h3>Stale overwrite</h3><p>An item can change between read and write. Revision checks stop agents from erasing newer work.</p></article>
         </div>
       </section>
@@ -157,7 +157,7 @@ export default function HomePage() {
           <div className="workflow-grid">
             <article><div className="step-icon"><TerminalIcon /></div><span>01 / PREPARE</span><h3>Build a change plan</h3><p>Fetch current state, normalize provider semantics, and calculate the exact diff.</p><code>work.prepareUpdate(…)</code></article>
             <article><div className="step-icon"><LayersIcon /></div><span>02 / INSPECT</span><h3>See what will happen</h3><p>Review field changes, lossy mappings, unsupported capabilities, and expected revision.</p><code>change.warnings</code></article>
-            <article><div className="step-icon"><ShieldIcon /></div><span>03 / COMMIT</span><h3>Write once, safely</h3><p>Verify the plan and revision, then commit with a stable idempotency key.</p><code>work.commit(change)</code></article>
+            <article><div className="step-icon"><ShieldIcon /></div><span>03 / COMMIT</span><h3>Commit with a receipt</h3><p>Verify the plan and revision, atomically claim the business key, then record or reconcile the outcome.</p><code>work.commit(change)</code></article>
           </div>
         </div>
       </section>
@@ -169,7 +169,7 @@ export default function HomePage() {
         </div>
         <div className="feature-grid">
           <article className="feature-large"><ShieldIcon /><h3>Integrity-checked changes</h3><p>A prepared change carries a fingerprint. Mutate it after inspection and the SDK rejects the commit.</p><div className="mini-code"><span>if</span> (fingerprint !== expected) <strong>throw</strong> WorkValidationError</div></article>
-          <article><RefreshIcon /><h3>Idempotent commits</h3><p>Retry without creating duplicate comments or repeated updates.</p></article>
+          <article><RefreshIcon /><h3>Atomic retry coordination</h3><p>Only one worker claims an intent. Uncertain provider outcomes become explicit errors instead of blind retries.</p></article>
           <article><LayersIcon /><h3>Capability discovery</h3><p>Check support instead of asking an agent to guess.</p></article>
           <article><TerminalIcon /><h3>Normalized errors</h3><p>Handle auth, rate limits, conflicts, and unsupported fields consistently.</p></article>
           <article><CheckIcon /><h3>Strictly typed</h3><p>ESM and CommonJS builds, zero runtime dependencies, Node.js 20+.</p></article>
@@ -201,7 +201,7 @@ export default function HomePage() {
           <details><summary>Can I inspect provider-specific data?</summary><p>Yes. Normalized entities can retain the raw provider payload for fields that are not part of the portable core.</p></details>
           <details><summary>Does it replace human approval?</summary><p>No. Work SDK gives approval systems a concrete diff and warnings to evaluate. Your application decides when a human must approve a commit.</p></details>
           <details><summary>Which issue trackers are supported?</summary><p>Work SDK supports GitHub Issues, GitLab, Linear, Jira Cloud, and Azure DevOps through separate adapters behind one normalized TypeScript API.</p></details>
-          <details><summary>Can I add another tracker?</summary><p>Yes. Adapters implement a compact contract and can be tested against the shared conformance suite.</p></details>
+          <details><summary>Can I add another tracker?</summary><p>Yes. Adapters implement a compact public contract. The repository runs a shared internal conformance suite for first-party adapters.</p></details>
         </div>
       </section>
 

@@ -53,7 +53,7 @@ describe("GitLab adapter", () => {
       stateName: "opened",
       priority: "none",
       labels: [{ id: "3", name: "bug", color: "ff0000" }],
-      assignees: [{ id: "7", displayName: "Ada" }],
+      assignees: [{ id: "7", handle: "ada", displayName: "Ada" }],
     });
     const [url, init] = fetcher.mock.calls[0]!;
     expect(url).toBe("https://gitlab.example/api/v4/projects/acme%2Fplatform%20api/issues/42");
@@ -88,6 +88,7 @@ describe("GitLab adapter", () => {
       cursor: "gitlab:page:2",
     });
     expect(page.nextCursor).toBe("gitlab:page:3");
+    expect(page.items).toEqual([]);
     const url = new URL(String(fetcher.mock.calls[0]![0]));
     expect(url.pathname).toBe("/api/v4/projects/acme%2Fplatform/issues");
     expect(Object.fromEntries(url.searchParams)).toMatchObject({
@@ -135,6 +136,14 @@ describe("GitLab adapter", () => {
       labels: "bug",
       issue_type: "issue",
     });
+  });
+
+  it("rejects non-open create states before sending an undocumented state_event", async () => {
+    const fetcher = vi.fn<WorkFetch>();
+    const adapter = gitlabWorkAdapter({ project: 77, fetch: fetcher });
+    await expect(adapter.create({ title: "Already done", state: "completed" }))
+      .rejects.toBeInstanceOf(WorkUnsupportedError);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("fails closed before GitLab can silently create unknown labels", async () => {

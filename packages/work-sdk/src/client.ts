@@ -1,4 +1,10 @@
-import { WorkConflictError, WorkUnsupportedError, WorkValidationError } from "./errors.js";
+import {
+  WorkAmbiguousCommitError,
+  WorkConflictError,
+  WorkInFlightError,
+  WorkUnsupportedError,
+  WorkValidationError,
+} from "./errors.js";
 import { assertLimit, assertNonEmpty, changeId, fingerprint, stableStringify } from "./internal.js";
 import { MemoryIdempotencyStore } from "./store.js";
 import type {
@@ -8,6 +14,9 @@ import type {
   CreateWorkItemInput,
   ListWorkItemsInput,
   PreparedWorkChange,
+  PreparedCommentWorkChange,
+  PreparedCreateWorkChange,
+  PreparedUpdateWorkChange,
   UpdateWorkItemInput,
   WorkAdapter,
   WorkCapabilities,
@@ -15,24 +24,20 @@ import type {
   WorkClientOptions,
   WorkItem,
   WorkPage,
+  WorkProvider,
   WorkWarning,
 } from "./types.js";
 
 export interface WorkClient {
-  readonly provider: string;
+  readonly provider: WorkProvider;
   readonly capabilities: WorkCapabilities;
   list(input?: ListWorkItemsInput, options?: { signal?: AbortSignal }): Promise<WorkPage<WorkItem>>;
   get(id: string, options?: { signal?: AbortSignal }): Promise<WorkItem>;
-  prepareCreate(input: CreateWorkItemInput): Promise<PreparedWorkChange>;
-  prepareUpdate(id: string, input: UpdateWorkItemInput, options?: { signal?: AbortSignal }): Promise<PreparedWorkChange>;
-  prepareComment(id: string, input: AddCommentInput, options?: { signal?: AbortSignal }): Promise<PreparedWorkChange>;
+  prepareCreate(input: CreateWorkItemInput): Promise<PreparedCreateWorkChange>;
+  prepareUpdate(id: string, input: UpdateWorkItemInput, options?: { signal?: AbortSignal }): Promise<PreparedUpdateWorkChange>;
+  prepareComment(id: string, input: AddCommentInput, options?: { signal?: AbortSignal }): Promise<PreparedCommentWorkChange>;
   commit(change: PreparedWorkChange, options?: CommitOptions): Promise<CommitResult>;
 }
-
-type StoredCommitResult = CommitResult & {
-  /** Internal request binding persisted alongside idempotent results. */
-  __workSdkIntentFingerprint?: string;
-};
 
 function intentFingerprint(change: PreparedWorkChange): string {
   return fingerprint({
@@ -43,9 +48,8 @@ function intentFingerprint(change: PreparedWorkChange): string {
   });
 }
 
-function replayResult(result: StoredCommitResult): CommitResult {
-  const { __workSdkIntentFingerprint: _binding, ...clean } = result;
-  return { ...clean, replayed: true };
+function replayResult(result: CommitResult): CommitResult {
+  return { ...result, replayed: true };
 }
 
 function changesForUpdate(current: WorkItem, input: UpdateWorkItemInput): WorkChangeField[] {
@@ -89,9 +93,16 @@ function warningsFor(adapter: WorkAdapter, input: CreateWorkItemInput | UpdateWo
   return warnings;
 }
 
-function prepared(input: Omit<PreparedWorkChange, "id" | "preparedAt" | "fingerprint">, now: Date): PreparedWorkChange {
+type UnsignedPreparedWorkChange = PreparedWorkChange extends infer T
+  ? T extends PreparedWorkChange ? Omit<T, "id" | "preparedAt" | "fingerprint"> : never
+  : never;
+
+function prepared<T extends UnsignedPreparedWorkChange>(
+  input: T,
+  now: Date,
+): Extract<PreparedWorkChange, { action: T["action"] }> {
   const base = { ...input, id: changeId(), preparedAt: now.toISOString() };
-  return { ...base, fingerprint: fingerprint(base) };
+  return { ...base, fingerprint: fingerprint(base) } as unknown as Extract<PreparedWorkChange, { action: T["action"] }>;
 }
 
 export function createWorkClient(options: WorkClientOptions): WorkClient {
@@ -102,7 +113,10 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
 
   return {
     provider: adapter.provider,
-    capabilities: Object.freeze({ ...adapter.capabilities }),
+    capabilities: Object.freeze({
+      ...adapter.capabilities,
+      concurrency: Object.freeze({ ...adapter.capabilities.concurrency }),
+    }),
 
     async list(input = {}, callOptions) {
       assertLimit(input.limit);
@@ -192,64 +206,102 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
       }
       const key = commitOptions.idempotencyKey;
       const requestBinding = intentFingerprint(change);
+      let storeKey: string | undefined;
+      let leaseId: string | undefined;
       let releaseLock = (): void => {};
       if (key !== undefined) {
         assertNonEmpty(key, "idempotencyKey");
-        const storeKey = `${adapter.provider}:${key}`;
-        const previousLock = idempotencyLocks.get(storeKey);
+        const localStoreKey = `${adapter.provider}:${key}`;
+        storeKey = localStoreKey;
+        const previousLock = idempotencyLocks.get(localStoreKey);
         let release!: () => void;
         const currentLock = new Promise<void>((resolve) => { release = resolve; });
-        idempotencyLocks.set(storeKey, currentLock);
+        idempotencyLocks.set(localStoreKey, currentLock);
         if (previousLock) await previousLock;
         releaseLock = () => {
           release();
-          if (idempotencyLocks.get(storeKey) === currentLock) idempotencyLocks.delete(storeKey);
+          if (idempotencyLocks.get(localStoreKey) === currentLock) idempotencyLocks.delete(localStoreKey);
         };
       }
 
       try {
-        if (key !== undefined) {
-          const previous = await store.get(`${adapter.provider}:${key}`) as StoredCommitResult | undefined;
-          if (previous) {
-            if (previous.__workSdkIntentFingerprint !== requestBinding) {
-              throw new WorkConflictError("Idempotency key was already used for a different prepared change", {
-                provider: adapter.provider,
-                details: {
-                  idempotencyKey: key,
-                  storedBinding: previous.__workSdkIntentFingerprint ?? "legacy-unbound",
-                  receivedBinding: requestBinding,
-                },
-              });
-            }
-            return replayResult(previous);
+        if (storeKey !== undefined) {
+          const acquired = await store.acquire(storeKey, requestBinding);
+          if (acquired.status === "completed") return replayResult(acquired.result);
+          if (acquired.status === "conflict") {
+            throw new WorkConflictError("Idempotency key was already used for a different prepared change", {
+              provider: adapter.provider,
+              details: { idempotencyKey: key },
+            });
           }
+          if (acquired.status === "in-flight") {
+            throw new WorkInFlightError(undefined, {
+              provider: adapter.provider,
+              details: { idempotencyKey: key },
+            });
+          }
+          if (acquired.status === "ambiguous") {
+            throw new WorkAmbiguousCommitError(undefined, {
+              provider: adapter.provider,
+              details: { idempotencyKey: key },
+            });
+          }
+          leaseId = acquired.leaseId;
         }
 
         let item: WorkItem;
         let comment;
-        if (change.action === "create") {
-          item = await adapter.create(change.input as CreateWorkItemInput, commitOptions.signal ? { signal: commitOptions.signal } : {});
-        } else {
-          const targetId = change.targetId;
-          if (!targetId) throw new WorkValidationError("Prepared change is missing targetId");
-          const current = await adapter.get(targetId, commitOptions.signal ? { signal: commitOptions.signal } : {});
-          if (change.expectedRevision && current.revision !== change.expectedRevision) {
-            throw new WorkConflictError(`Expected revision ${change.expectedRevision}, received ${current.revision}`, {
+        let mutationStarted = false;
+        try {
+          if (change.action === "create") {
+            mutationStarted = true;
+            item = await adapter.create(change.input, commitOptions.signal ? { signal: commitOptions.signal } : {});
+          } else {
+            const targetId = change.targetId;
+            if (!targetId) throw new WorkValidationError("Prepared change is missing targetId");
+            const current = await adapter.get(targetId, commitOptions.signal ? { signal: commitOptions.signal } : {});
+            if (current.revision !== change.expectedRevision) {
+              throw new WorkConflictError(`Expected revision ${change.expectedRevision}, received ${current.revision}`, {
+                provider: adapter.provider,
+                details: { expected: change.expectedRevision, actual: current.revision },
+              });
+            }
+            if (change.action === "update") {
+              if (change.changes.length === 0) item = current;
+              else {
+                mutationStarted = true;
+                item = await adapter.update(targetId, change.input, {
+                  expectedRevision: change.expectedRevision,
+                  ...(commitOptions.signal ? { signal: commitOptions.signal } : {}),
+                });
+              }
+            } else {
+              mutationStarted = true;
+              comment = await adapter.addComment(targetId, change.input, commitOptions.signal ? { signal: commitOptions.signal } : {});
+              item = await adapter.get(targetId, commitOptions.signal ? { signal: commitOptions.signal } : {});
+            }
+          }
+        } catch (cause) {
+          if (storeKey !== undefined && leaseId !== undefined) {
+            const outcome = mutationStarted ? "ambiguous" : "retryable";
+            try {
+              await store.abandon(storeKey, leaseId, outcome);
+            } catch (storeCause) {
+              throw new WorkAmbiguousCommitError("The idempotency claim could not be updated after a failed attempt", {
+                provider: adapter.provider,
+                cause: storeCause,
+                details: { idempotencyKey: key, providerCause: cause },
+              });
+            }
+          }
+          if (mutationStarted) {
+            throw new WorkAmbiguousCommitError(undefined, {
               provider: adapter.provider,
-              details: { expected: change.expectedRevision, actual: current.revision },
+              cause,
+              details: { idempotencyKey: key },
             });
           }
-          if (change.action === "update") {
-            item = change.changes.length === 0
-              ? current
-              : await adapter.update(targetId, change.input as UpdateWorkItemInput, {
-                ...(change.expectedRevision ? { expectedRevision: change.expectedRevision } : {}),
-                ...(commitOptions.signal ? { signal: commitOptions.signal } : {}),
-              });
-          } else {
-            comment = await adapter.addComment(targetId, change.input as AddCommentInput, commitOptions.signal ? { signal: commitOptions.signal } : {});
-            item = await adapter.get(targetId, commitOptions.signal ? { signal: commitOptions.signal } : {});
-          }
+          throw cause;
         }
 
         const result: CommitResult = {
@@ -259,11 +311,17 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
           replayed: false,
           committedAt: now().toISOString(),
         };
-        if (key !== undefined) {
-          await store.set(`${adapter.provider}:${key}`, {
-            ...result,
-            __workSdkIntentFingerprint: requestBinding,
-          } as StoredCommitResult);
+        if (storeKey !== undefined && leaseId !== undefined) {
+          try {
+            await store.complete(storeKey, leaseId, result);
+          } catch (cause) {
+            await Promise.resolve(store.abandon(storeKey, leaseId, "ambiguous")).catch(() => {});
+            throw new WorkAmbiguousCommitError("The provider write succeeded, but its durable receipt could not be stored", {
+              provider: adapter.provider,
+              cause,
+              details: { idempotencyKey: key, result },
+            });
+          }
         }
         return result;
       } finally {

@@ -2,7 +2,7 @@
 
 **Let AI agents update work trackers without blind writes.**
 
-One TypeScript API for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps—with previewed diffs, idempotent commits, and stale-update protection.
+One TypeScript API for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps—with previewed diffs, atomic idempotency coordination, and stale-update protection.
 
 [![npm version](https://img.shields.io/npm/v/work-sdk)](https://www.npmjs.com/package/work-sdk)
 [![CI](https://github.com/arturict/work-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/arturict/work-sdk/actions/workflows/ci.yml)
@@ -61,7 +61,7 @@ Prepared changes are JSON-serializable and contain no credentials.
 | --- | --- |
 | An agent or automation writes to more than one tracker | You need the provider's complete API surface |
 | You need a diff or approval step before a mutation | You only read data or perform a single trusted write |
-| Retries must not duplicate comments or updates | Native request/response types are more important than portability |
+| Duplicate-risk must be coordinated and ambiguous outcomes surfaced | Native request/response types are more important than portability |
 | Stale plans must fail before overwriting newer work | You want provider-specific features with no normalization |
 
 Work SDK is a focused safety and portability layer, not a replacement for every provider endpoint.
@@ -172,17 +172,20 @@ const comment = await work.prepareComment(issue.id, {
 
 ## Idempotency
 
-The default in-memory store prevents duplicate writes within one process. Each key is bound to the normalized provider, action, target, and input, so accidentally reusing it for different intent fails with `WorkConflictError`. For serverless or multi-process systems, pass a durable store:
+The default in-memory store atomically coordinates callers inside one process. Each key is bound to the normalized provider, action, target, and input. For serverless or multi-process systems, pass a durable store whose `acquire` operation uses a transaction, compare-and-swap, or unique conditional write:
 
 ```ts
-import type { CommitResult, IdempotencyStore } from "work-sdk";
+import type { IdempotencyStore } from "work-sdk";
 
 const store: IdempotencyStore = {
-  async get(key) {
-    return db.get<CommitResult>(key);
+  async acquire(key, intentFingerprint) {
+    return db.claimWorkSdkIntent({ key, intentFingerprint });
   },
-  async set(key, result) {
-    await db.set(key, result);
+  async complete(key, leaseId, result) {
+    await db.completeWorkSdkIntent({ key, leaseId, result });
+  },
+  async abandon(key, leaseId, outcome) {
+    await db.abandonWorkSdkIntent({ key, leaseId, outcome });
   },
 };
 
@@ -193,6 +196,8 @@ Use a stable key derived from the business event, not from a random agent run ID
 
 Semantic no-op updates still validate the current revision but skip the provider mutation entirely.
 
+`WorkInFlightError` means another worker owns the key. `WorkAmbiguousCommitError` means a write may have reached the provider and must be reconciled before retrying. See [the idempotency-store contract](./docs/idempotency.md).
+
 ## Capability discovery
 
 Every adapter declares what it can represent:
@@ -201,6 +206,11 @@ Every adapter declares what it can represent:
 if (!work.capabilities.priorities) {
   // Keep priority out of the normalized update or route it through a
   // provider-specific project/custom-field implementation.
+}
+
+if (work.capabilities.concurrency.update !== "atomic") {
+  // GitHub, GitLab, Linear, and Jira use a best-effort preflight check.
+  // Azure DevOps updates use an atomic /rev test.
 }
 ```
 
@@ -211,7 +221,11 @@ Unsupported fields surface as warnings during preparation. Provider-specific raw
 Errors have stable classes and codes across providers:
 
 ```ts
-import { WorkConflictError, WorkRateLimitError } from "work-sdk";
+import {
+  WorkAmbiguousCommitError,
+  WorkConflictError,
+  WorkRateLimitError,
+} from "work-sdk";
 
 try {
   await work.commit(change);
@@ -222,12 +236,15 @@ try {
   if (error instanceof WorkRateLimitError) {
     console.log(error.retryAfterMs);
   }
+  if (error instanceof WorkAmbiguousCommitError) {
+    // Reconcile using the business key and provider data. Do not blind-retry.
+  }
 }
 ```
 
 ## Testing custom adapters
 
-The `work-sdk/testing` entry point includes deterministic fixtures, a memory adapter, and a shared adapter contract suite. Adapter authors can validate core behavior without making network calls.
+The `work-sdk/testing` entry point includes deterministic fixtures and a memory adapter. The repository also runs an internal shared contract suite for first-party adapters.
 
 ## Development
 
