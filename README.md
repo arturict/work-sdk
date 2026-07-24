@@ -1,20 +1,32 @@
 # Work SDK
 
-**One work SDK for every tracker.** Work SDK gives coding agents and TypeScript applications one typed API for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps—with previews, idempotency, and conflict protection built in.
+**Let AI agents update work trackers without blind writes.**
+
+One TypeScript API for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps—with previewed diffs, idempotent commits, and stale-update protection.
+
+[![npm version](https://img.shields.io/npm/v/work-sdk)](https://www.npmjs.com/package/work-sdk)
+[![CI](https://github.com/arturict/work-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/arturict/work-sdk/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/work-sdk)](LICENSE)
+
+[Get started](https://work-sdk.vercel.app/docs/getting-started) · [Run examples](https://work-sdk.vercel.app/docs/examples) · [Compare providers](https://work-sdk.vercel.app/docs/providers) · [Read the safety model](https://work-sdk.vercel.app/guides/agent-safe-work-tracker-writes) · [Ask a question](https://github.com/arturict/work-sdk/discussions)
 
 ```bash
 npm install work-sdk
 ```
 
+Try the complete safe-write lifecycle without an account, token, or network request:
+
 ```ts
 import { createWorkClient } from "work-sdk";
-import { github } from "work-sdk/github";
+import { memoryWorkAdapter, workItemFixture } from "work-sdk/testing";
 
 const work = createWorkClient({
-  adapter: github({
-    token: process.env.GITHUB_TOKEN!,
-    owner: "acme",
-    repo: "web",
+  adapter: memoryWorkAdapter({
+    items: [workItemFixture({
+      id: "123",
+      identifier: "DEMO-123",
+      title: "Ship the retry fix",
+    })],
   }),
 });
 
@@ -25,9 +37,11 @@ const change = await work.prepareUpdate("123", {
 console.log(change.summary, change.changes, change.warnings);
 
 const result = await work.commit(change, {
-  idempotencyKey: "merge:acme/web#481",
+  idempotencyKey: "demo:close:123",
 });
 ```
+
+When the workflow is ready, replace the memory adapter with one provider adapter. Credentials stay inside that adapter and are never copied into prepared changes.
 
 ## Why Work SDK?
 
@@ -40,6 +54,17 @@ Work SDK uses an explicit safe-write protocol:
 3. **Commit** verifies plan integrity and revision, executes the write, and returns a receipt.
 
 Prepared changes are JSON-serializable and contain no credentials.
+
+## When should you use Work SDK?
+
+| Choose Work SDK when… | Choose an official provider SDK when… |
+| --- | --- |
+| An agent or automation writes to more than one tracker | You need the provider's complete API surface |
+| You need a diff or approval step before a mutation | You only read data or perform a single trusted write |
+| Retries must not duplicate comments or updates | Native request/response types are more important than portability |
+| Stale plans must fail before overwriting newer work | You want provider-specific features with no normalization |
+
+Work SDK is a focused safety and portability layer, not a replacement for every provider endpoint.
 
 ## Adapters
 

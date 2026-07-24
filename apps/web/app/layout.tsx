@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+import { SiteAnalytics } from "@/components/site-analytics";
 import { SiteFooter, SiteHeader } from "@/components/site-shell";
 import { discoveryAlternates, site } from "@/lib/site";
 
@@ -80,6 +81,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <SiteHeader />
         {children}
         <SiteFooter />
+        <SiteAnalytics />
       </body>
     </html>
   );

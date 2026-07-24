@@ -103,8 +103,8 @@ export default function HomePage() {
             Create, update, comment on, and transition work across GitHub, GitLab, Linear, Jira, and Azure DevOps with one typed API — with previews, idempotency, and conflict protection built in.
           </p>
           <div className="hero-actions">
-            <Link className="button primary" href="/docs">Read the docs <ArrowIcon /></Link>
-            <a className="button secondary" href={site.github}>View on GitHub</a>
+            <Link className="button primary" href="/docs/getting-started">Run the 5-minute quickstart <ArrowIcon /></Link>
+            <Link className="button secondary" href="/guides/agent-safe-work-tracker-writes">Read the safety model</Link>
           </div>
           <dl className="hero-proof">
             <div><dt>Preview every write</dt><dd>Inspect exact changes before commit.</dd></div>
@@ -134,6 +134,17 @@ export default function HomePage() {
           <article><span className="failure-index">02</span><h3>Duplicate comment</h3><p>A timeout does not say whether a write succeeded. Idempotency makes retries deterministic.</p></article>
           <article><span className="failure-index">03</span><h3>Stale overwrite</h3><p>An item can change between read and write. Revision checks stop agents from erasing newer work.</p></article>
         </div>
+      </section>
+
+      <section className="article-promo">
+        <Link className="shell article-promo-inner" href="/guides/agent-safe-work-tracker-writes">
+          <span className="article-promo-label">New engineering guide</span>
+          <div>
+            <h2>Why retries create duplicate issue comments</h2>
+            <p>Designing an idempotent, conflict-safe transaction boundary across five provider APIs.</p>
+          </div>
+          <span className="article-promo-link">Read the guide <ArrowIcon /></span>
+        </Link>
       </section>
 
       <section className="section workflow-section" id="workflow">
@@ -197,7 +208,7 @@ export default function HomePage() {
       <section className="final-cta">
         <div className="shell final-cta-inner">
           <div><p className="kicker">Give agents a safer tool</p><h2>Ship work, not side effects.</h2><p>Start with one provider. Keep one API when your stack changes.</p></div>
-          <div className="hero-actions"><Link className="button inverted" href="/docs/getting-started">Get started <ArrowIcon /></Link><a className="button ghost-dark" href={site.github}>Star on GitHub</a></div>
+          <div className="hero-actions"><Link className="button inverted" href="/docs/getting-started">Get started <ArrowIcon /></Link><a className="button ghost-dark" href="/go/github?from=home-final">Star on GitHub</a></div>
         </div>
       </section>
     </main>

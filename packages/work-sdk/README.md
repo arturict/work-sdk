@@ -1,10 +1,64 @@
 # Work SDK
 
-One typed, agent-safe API for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps.
+**Let AI agents update work trackers without blind writes.**
+
+Work SDK is a unified TypeScript issue-tracker API for GitHub Issues, GitLab, Linear, Jira Cloud, and Azure DevOps. It turns every external mutation into a prepared, inspectable change before commit.
+
+[Documentation](https://work-sdk.vercel.app/docs) · [Quickstart](https://work-sdk.vercel.app/docs/getting-started) · [Examples](https://work-sdk.vercel.app/docs/examples) · [Provider comparison](https://work-sdk.vercel.app/docs/providers) · [GitHub](https://github.com/arturict/work-sdk)
 
 ```bash
 npm install work-sdk
 ```
+
+Requires Node.js 20 or later. Ships ESM, CommonJS, TypeScript declarations, zero runtime dependencies, and npm provenance.
+
+## Try it without credentials
+
+The deterministic memory adapter exercises the same public contract as a real provider:
+
+```ts
+import { createWorkClient } from "work-sdk";
+import { memoryWorkAdapter, workItemFixture } from "work-sdk/testing";
+
+const adapter = memoryWorkAdapter({
+  items: [workItemFixture({
+    id: "123",
+    identifier: "DEMO-123",
+    title: "Ship the retry fix",
+  })],
+});
+
+const work = createWorkClient({ adapter });
+const change = await work.prepareComment("123", {
+  body: "The deployment completed successfully.",
+});
+
+console.log(change.summary, change.changes, change.warnings);
+
+const first = await work.commit(change, {
+  idempotencyKey: "deploy:production:123",
+});
+const replay = await work.commit(change, {
+  idempotencyKey: "deploy:production:123",
+});
+
+console.log(first.replayed);  // false
+console.log(replay.replayed); // true — no duplicate provider write
+```
+
+## Why a safe-write protocol?
+
+A timeout cannot tell you whether an issue-tracker write failed or whether only its response was lost. Retrying can duplicate comments. At the same time, an item can change between an agent's read and write, making a previously reasonable update stale.
+
+Work SDK separates intent from execution:
+
+1. **Prepare** reads current state, resolves provider semantics, and returns a field-level diff.
+2. **Inspect** lets an agent, policy, approval UI, or person review changes and warnings.
+3. **Commit** verifies the plan fingerprint and revision, then records idempotency.
+
+The same idempotency key with the same intent returns the stored receipt. Reusing that key with different intent fails with `WorkConflictError`.
+
+## Connect a provider
 
 ```ts
 import { createWorkClient } from "work-sdk";
@@ -26,14 +80,61 @@ await work.commit(change, {
 });
 ```
 
-Work SDK makes external writes explicit:
+Credentials remain inside adapters and never appear in prepared changes.
 
-1. `prepare` reads current state and produces a field-level diff.
-2. Your application or agent inspects the proposed change and warnings.
-3. `commit` verifies integrity, rejects stale revisions, and records idempotency.
+## Supported providers
 
-Provider adapters are available from `work-sdk/github`, `work-sdk/gitlab`, `work-sdk/linear`, `work-sdk/jira`, and `work-sdk/azure-devops`. Deterministic fixtures and adapter utilities are available from `work-sdk/testing`.
+| Provider | Import | Highlights |
+| --- | --- | --- |
+| GitHub Issues | `work-sdk/github` | Issues, comments, labels, assignees, open/closed state |
+| GitLab.com and Self-Managed | `work-sdk/gitlab` | Issues, comments, OAuth/private tokens, guarded label writes |
+| Linear | `work-sdk/linear` | Team states, priorities, projects, comments |
+| Jira Cloud | `work-sdk/jira` | Project transitions, ADF descriptions, comments |
+| Azure DevOps / Azure Boards | `work-sdk/azure-devops` | WIQL, process maps, parent links, atomic revision tests |
+| Deterministic testing | `work-sdk/testing` | In-memory adapter, fixtures, adapter contract utilities |
 
-Start with the [documentation](https://work-sdk.vercel.app/docs), use the [GitLab guide](https://work-sdk.vercel.app/docs/providers/gitlab) for GitLab.com and Self-Managed, or browse the [source](https://github.com/arturict/work-sdk).
+Provider capabilities are runtime data. Check them before an agent proposes an operation:
 
-MIT © Work SDK contributors
+```ts
+if (!work.capabilities.priorities) {
+  // Omit priority or route through a provider-specific implementation.
+}
+```
+
+## Work SDK or an official SDK?
+
+Use Work SDK when you need a common issue-tracker client, a diff or approval boundary, safe retries, or stale-write protection. Use an official provider SDK when you need the provider's complete API surface or highly specific features with no normalization.
+
+Work SDK is intentionally a focused safety and portability layer.
+
+## Durable idempotency
+
+The default store coordinates retries inside one process. Serverless, clustered, and job systems should provide a durable store:
+
+```ts
+import type { CommitResult, IdempotencyStore } from "work-sdk";
+
+const store: IdempotencyStore = {
+  async get(key) {
+    return db.get<CommitResult>(key);
+  },
+  async set(key, result) {
+    await db.set(key, result);
+  },
+};
+
+const work = createWorkClient({ adapter, idempotencyStore: store });
+```
+
+Use a stable key derived from a business event—not a random agent-run identifier.
+
+## Learn more
+
+- [Why retries create duplicate issue comments](https://work-sdk.vercel.app/guides/agent-safe-work-tracker-writes)
+- [Safe-write protocol](https://work-sdk.vercel.app/docs/concepts/safe-writes)
+- [Agent integration guide](https://work-sdk.vercel.app/docs/guides/agents)
+- [Testing guide](https://work-sdk.vercel.app/docs/guides/testing)
+- [Client API reference](https://work-sdk.vercel.app/docs/reference/client)
+- [Normalized errors](https://work-sdk.vercel.app/docs/reference/errors)
+
+Open source under the MIT License.

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { LogoMark } from "@/components/logo";
-import { installCommand, site } from "@/lib/site";
+import { installCommand } from "@/lib/site";
 
 export function SiteHeader() {
   return (
@@ -14,11 +14,12 @@ export function SiteHeader() {
         </Link>
         <div className="nav-links">
           <Link href="/docs">Docs</Link>
+          <Link href="/guides/agent-safe-work-tracker-writes">Safety guide</Link>
           <Link href="/#adapters">Adapters</Link>
           <Link href="/#workflow">Safe writes</Link>
-          <a href={site.github}>GitHub</a>
+          <a href="/go/github?from=header">GitHub</a>
         </div>
-        <a aria-label={`${installCommand} on npm`} className="install-pill" href={site.npm}>
+        <a aria-label={`${installCommand} on npm`} className="install-pill" href="/go/npm?from=header">
           <span className="prompt">$</span> {installCommand}
         </a>
       </nav>
@@ -42,8 +43,9 @@ export function SiteFooter() {
           <Link href="/docs/getting-started">Quickstart</Link>
           <Link href="/docs/examples">Examples</Link>
           <Link href="/docs/providers">Providers</Link>
-          <a href={site.github}>Source</a>
-          <a href={site.npm}>npm</a>
+          <Link href="/guides/agent-safe-work-tracker-writes">Safety guide</Link>
+          <a href="/go/github?from=footer">Source</a>
+          <a href="/go/npm?from=footer">npm</a>
           <a href="/llms.txt">llms.txt</a>
         </div>
         <p className="footer-legal">Open source under the MIT License.</p>

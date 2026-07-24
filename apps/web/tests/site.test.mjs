@@ -22,12 +22,16 @@ test("all machine-readable discovery routes exist", async () => {
 
 test("site includes crawl and social metadata", async () => {
   const layout = await read("app/layout.tsx");
+  const analytics = await read("components/site-analytics.tsx");
   const site = await read("lib/site.ts");
   const sitemap = await read("app/sitemap.ts");
   const robots = await read("app/robots.ts");
   assert.match(layout, /openGraph/);
   assert.match(layout, /twitter/);
   assert.match(layout, /manifest\.webmanifest/);
+  assert.match(layout, /SiteAnalytics/);
+  assert.match(analytics, /@vercel\/analytics\/next/);
+  assert.match(analytics, /url\.search = ""/);
   assert.match(site, /createPageMetadata/);
   assert.match(site, /canonical: path/);
   assert.match(site, /max-image-preview/);
@@ -103,4 +107,30 @@ test("documentation has guided learning, provider, reference, and testing routes
   assert.match(sitemap, /providers\/gitlab/);
   assert.match(sitemap, /guides\/testing/);
   assert.match(sitemap, /docs\/examples/);
+});
+
+test("engineering guide is crawlable, substantive, and linked from the homepage", async () => {
+  const guide = await read("app/guides/agent-safe-work-tracker-writes/page.tsx");
+  const homepage = await read("app/page.tsx");
+  const sitemap = await read("app/sitemap.ts");
+  assert.match(guide, /Why retries create duplicate issue comments/);
+  assert.match(guide, /TechArticle/);
+  assert.match(guide, /idempotencyKey/);
+  assert.match(guide, /optimistic concurrency/i);
+  assert.match(guide, /memoryWorkAdapter/);
+  assert.match(homepage, /\/guides\/agent-safe-work-tracker-writes/);
+  assert.match(sitemap, /\/guides\/agent-safe-work-tracker-writes/);
+});
+
+test("outbound conversion route only redirects allowlisted destinations", async () => {
+  const route = await read("app/go/[destination]/route.ts");
+  const shell = await read("components/site-shell.tsx");
+  assert.match(route, /github: site\.github/);
+  assert.match(route, /npm: site\.npm/);
+  assert.match(route, /Unknown destination/);
+  assert.match(route, /outbound_click/);
+  assert.match(route, /Cache-Control/);
+  assert.doesNotMatch(route, /user-agent|x-forwarded-for|request\.headers\.get\("cookie"/i);
+  assert.match(shell, /\/go\/github\?from=header/);
+  assert.match(shell, /\/go\/npm\?from=header/);
 });

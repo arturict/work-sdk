@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
   return [
     { url: site.url, changeFrequency: "weekly", priority: 1 },
+    { url: `${site.url}/guides/agent-safe-work-tracker-writes`, changeFrequency: "monthly", priority: 0.9 },
     ...docs.map((path, index) => ({ url: `${site.url}${path}`, changeFrequency: "weekly" as const, priority: index === 0 ? 0.9 : 0.8 })),
   ];
 }

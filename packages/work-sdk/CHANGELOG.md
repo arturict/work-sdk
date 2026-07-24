@@ -1,5 +1,11 @@
 # work-sdk
 
+## 0.3.1
+
+### Patch Changes
+
+- Improve package discovery and evaluation with issue-tracker search metadata, a credential-free safe-write example, a provider comparison, and clearer guidance on when to use Work SDK.
+
 ## 0.3.0
 
 ### Minor Changes
