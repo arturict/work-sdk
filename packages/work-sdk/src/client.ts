@@ -11,6 +11,7 @@ import type {
   AddCommentInput,
   CommitOptions,
   CommitResult,
+  CommitResultFor,
   CreateWorkItemInput,
   ListWorkItemsInput,
   PreparedWorkChange,
@@ -36,7 +37,10 @@ export interface WorkClient {
   prepareCreate(input: CreateWorkItemInput): Promise<PreparedCreateWorkChange>;
   prepareUpdate(id: string, input: UpdateWorkItemInput, options?: { signal?: AbortSignal }): Promise<PreparedUpdateWorkChange>;
   prepareComment(id: string, input: AddCommentInput, options?: { signal?: AbortSignal }): Promise<PreparedCommentWorkChange>;
-  commit(change: PreparedWorkChange, options?: CommitOptions): Promise<CommitResult>;
+  commit<TChange extends PreparedWorkChange>(
+    change: TChange,
+    options?: CommitOptions,
+  ): Promise<CommitResultFor<TChange>>;
 }
 
 function intentFingerprint(change: PreparedWorkChange): string {
@@ -48,8 +52,10 @@ function intentFingerprint(change: PreparedWorkChange): string {
   });
 }
 
-function replayResult(result: CommitResult): CommitResult {
-  return { ...result, replayed: true };
+function replayResult<TChange extends PreparedWorkChange>(
+  result: CommitResult,
+): CommitResultFor<TChange> {
+  return { ...result, replayed: true } as CommitResultFor<TChange>;
 }
 
 function changesForUpdate(current: WorkItem, input: UpdateWorkItemInput): WorkChangeField[] {
@@ -227,7 +233,19 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
       try {
         if (storeKey !== undefined) {
           const acquired = await store.acquire(storeKey, requestBinding);
-          if (acquired.status === "completed") return replayResult(acquired.result);
+          if (acquired.status === "completed") {
+            if (acquired.result.action !== change.action) {
+              throw new WorkValidationError("The idempotency store returned a receipt for a different action", {
+                provider: adapter.provider,
+                details: {
+                  idempotencyKey: key,
+                  expectedAction: change.action,
+                  receivedAction: acquired.result.action,
+                },
+              });
+            }
+            return replayResult<typeof change>(acquired.result);
+          }
           if (acquired.status === "conflict") {
             throw new WorkConflictError("Idempotency key was already used for a different prepared change", {
               provider: adapter.provider,
@@ -304,13 +322,21 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
           throw cause;
         }
 
-        const result: CommitResult = {
-          action: change.action,
-          item,
-          ...(comment ? { comment } : {}),
-          replayed: false,
-          committedAt: now().toISOString(),
-        };
+        const committedAt = now().toISOString();
+        const result: CommitResult = change.action === "comment"
+          ? {
+              action: "comment",
+              item,
+              comment: comment!,
+              replayed: false,
+              committedAt,
+            }
+          : {
+              action: change.action,
+              item,
+              replayed: false,
+              committedAt,
+            };
         if (storeKey !== undefined && leaseId !== undefined) {
           try {
             await store.complete(storeKey, leaseId, result);
@@ -323,7 +349,7 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
             });
           }
         }
-        return result;
+        return result as CommitResultFor<typeof change>;
       } finally {
         releaseLock();
       }

@@ -2,14 +2,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { CopyButton } from "@/components/copy-button";
-
-const navigation = [
-  { label: "Start", links: [["Overview", "/docs"], ["Getting started", "/docs/getting-started"], ["Example apps", "/docs/examples"]] },
-  { label: "Concepts", links: [["Safe writes", "/docs/concepts/safe-writes"], ["Providers", "/docs/providers"]] },
-  { label: "Providers", links: [["GitLab", "/docs/providers/gitlab"], ["Azure DevOps", "/docs/providers/azure-devops"]] },
-  { label: "Reference", links: [["Client API", "/docs/reference/client"], ["Errors", "/docs/reference/errors"]] },
-  { label: "Guides", links: [["Agent integration", "/docs/guides/agents"], ["Testing", "/docs/guides/testing"]] },
-] as const;
+import { DocsNavigation } from "@/components/docs-navigation";
+import { DocsSearch } from "@/components/docs-search";
 
 export interface TocItem { id: string; label: string }
 
@@ -25,12 +19,8 @@ export function DocsShell({ breadcrumb, title, description, toc = [], children }
   return (
     <main className="shell docs-layout" id="main-content">
       <nav aria-label="Documentation" className="docs-sidebar">
-        {navigation.map((group) => (
-          <div className="docs-nav-group" key={group.label}>
-            <p>{group.label}</p>
-            {group.links.map(([label, href]) => <Link href={href} key={href}>{label}</Link>)}
-          </div>
-        ))}
+        <DocsSearch />
+        <div className="docs-nav-scroll"><DocsNavigation /></div>
       </nav>
       <article className="docs-content">
         <p className="breadcrumb">Docs / {breadcrumb}</p>

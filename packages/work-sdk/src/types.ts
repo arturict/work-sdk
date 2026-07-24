@@ -177,13 +177,32 @@ export interface CommitOptions {
   signal?: AbortSignal;
 }
 
-export interface CommitResult {
-  action: WorkAction;
+interface CommitResultBase<TAction extends WorkAction> {
+  action: TAction;
   item: WorkItem;
-  comment?: WorkComment;
   replayed: boolean;
   committedAt: string;
 }
+
+export interface CreateCommitResult extends CommitResultBase<"create"> {
+  comment?: never;
+}
+
+export interface UpdateCommitResult extends CommitResultBase<"update"> {
+  comment?: never;
+}
+
+export interface CommentCommitResult extends CommitResultBase<"comment"> {
+  comment: WorkComment;
+}
+
+export type CommitResult = CreateCommitResult | UpdateCommitResult | CommentCommitResult;
+
+export type CommitResultFor<TChange extends PreparedWorkChange> =
+  TChange extends PreparedCreateWorkChange ? CreateCommitResult
+    : TChange extends PreparedUpdateWorkChange ? UpdateCommitResult
+      : TChange extends PreparedCommentWorkChange ? CommentCommitResult
+        : CommitResult;
 
 export interface WorkAdapter {
   readonly provider: WorkProvider;

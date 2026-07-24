@@ -428,6 +428,33 @@ describe("commit", () => {
     expect(adapter.calls).toHaveLength(0);
   });
 
+  it("rejects a corrupt replay receipt whose action does not match the prepared change", async () => {
+    const adapter = memoryWorkAdapter({ items: [existing()] });
+    const store: IdempotencyStore = {
+      acquire: () => ({
+        status: "completed",
+        result: {
+          action: "update",
+          item: existing(),
+          replayed: false,
+          committedAt: NOW.toISOString(),
+        },
+      }),
+      complete: () => {},
+      abandon: () => {},
+    };
+    const client = createWorkClient({ adapter, idempotencyStore: store, now: () => NOW });
+    const change = await client.prepareCreate({ title: "Create, not update" });
+    adapter.clearCalls();
+
+    await expect(client.commit(change, { idempotencyKey: "corrupt-receipt" }))
+      .rejects.toMatchObject({
+        code: "validation",
+        details: { expectedAction: "create", receivedAction: "update" },
+      });
+    expect(adapter.calls).toHaveLength(0);
+  });
+
   it("rejects reusing an idempotency key for a different intent", async () => {
     const { adapter, client } = setup();
     await client.commit(await client.prepareCreate({ title: "First" }), { idempotencyKey: "shared-key" });

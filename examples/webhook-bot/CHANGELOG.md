@@ -1,5 +1,12 @@
 # @work-sdk/example-webhook-bot
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies
+  - work-sdk@0.5.0
+
 ## 0.0.3
 
 ### Patch Changes

@@ -141,8 +141,11 @@ Credentials stay inside adapters and are never copied into prepared changes.
 - [Runnable example apps](https://work-sdk.vercel.app/docs/examples)
 - [Safe-write protocol](https://work-sdk.vercel.app/docs/concepts/safe-writes)
 - [Provider comparison](https://work-sdk.vercel.app/docs/providers)
-- [Azure DevOps guide](https://work-sdk.vercel.app/docs/providers/azure-devops)
+- [GitHub guide](https://work-sdk.vercel.app/docs/providers/github)
 - [GitLab guide](https://work-sdk.vercel.app/docs/providers/gitlab)
+- [Linear guide](https://work-sdk.vercel.app/docs/providers/linear)
+- [Jira Cloud guide](https://work-sdk.vercel.app/docs/providers/jira)
+- [Azure DevOps guide](https://work-sdk.vercel.app/docs/providers/azure-devops)
 - [Client API reference](https://work-sdk.vercel.app/docs/reference/client)
 - [Normalized errors](https://work-sdk.vercel.app/docs/reference/errors)
 - [Agent integration](https://work-sdk.vercel.app/docs/guides/agents)
@@ -168,6 +171,10 @@ const update = await work.prepareUpdate(issue.id, {
 const comment = await work.prepareComment(issue.id, {
   body: "Implemented in PR #481 and verified in staging.",
 });
+
+const receipt = await work.commit(comment);
+receipt.action;       // "comment"
+receipt.comment.body; // string — action-specific receipt typing in v0.5
 ```
 
 ## Idempotency

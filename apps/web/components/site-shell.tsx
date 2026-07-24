@@ -10,7 +10,7 @@ export function SiteHeader() {
         <Link aria-label="Work SDK home" className="brand" href="/">
           <LogoMark />
           <span>Work SDK</span>
-          <span className="version-chip">v0.3</span>
+          <span className="version-chip">v0.5</span>
         </Link>
         <div className="nav-links">
           <Link href="/docs">Docs</Link>

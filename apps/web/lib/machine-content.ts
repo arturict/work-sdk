@@ -124,7 +124,10 @@ export const llmsIndex = `# Work SDK
 - [Example apps](${site.url}/docs/examples): runnable approval CLI and signed webhook bot with fake credentials
 - [Safe writes](${site.url}/docs/concepts/safe-writes): integrity, concurrency, warnings, and idempotency
 - [Providers](${site.url}/docs/providers): capability and semantic comparison
+- [GitHub](${site.url}/docs/providers/github): permissions, identifiers, mappings, and safe writes
 - [GitLab](${site.url}/docs/providers/gitlab): GitLab.com, Self-Managed, auth, guarded labels, types, and concurrency
+- [Linear](${site.url}/docs/providers/linear): teams, workflow states, priorities, and safe writes
+- [Jira Cloud](${site.url}/docs/providers/jira): authentication, transitions, ADF, and workflow limits
 - [Azure DevOps](${site.url}/docs/providers/azure-devops): auth, custom processes, WIQL, and JSON Patch
 - [Client reference](${site.url}/docs/reference/client): methods and normalized types
 - [Errors](${site.url}/docs/reference/errors): error classes and retry policy
