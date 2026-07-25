@@ -97,7 +97,6 @@ export default function HomePage() {
 
       <section className="hero hero-centered shell">
         <div className="hero-copy">
-          <p className="eyebrow"><span className="pulse" /> Open source · v0.5</p>
           <h1>Work across trackers.<br /><span>Keep one safe API.</span></h1>
           <p className="hero-summary">
             One typed TypeScript SDK for GitHub, GitLab, Linear, Jira, and Azure DevOps. Preview the exact change, coordinate retries, then commit with an explicit receipt.
