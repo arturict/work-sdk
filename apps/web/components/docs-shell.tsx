@@ -1,9 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-
-import { CopyButton } from "@/components/copy-button";
-import { DocsNavigation } from "@/components/docs-navigation";
-import { DocsSearch } from "@/components/docs-search";
+import { Callout } from "fumadocs-ui/components/callout";
+import { CodeBlock as FumadocsCodeBlock } from "fumadocs-ui/components/codeblock";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+} from "fumadocs-ui/layouts/docs/page";
 
 export interface TocItem { id: string; label: string }
 
@@ -17,37 +21,38 @@ interface DocsShellProps {
 
 export function DocsShell({ breadcrumb, title, description, toc = [], children }: DocsShellProps) {
   return (
-    <main className="shell docs-layout" id="main-content">
-      <nav aria-label="Documentation" className="docs-sidebar">
-        <DocsSearch />
-        <div className="docs-nav-scroll"><DocsNavigation /></div>
-      </nav>
-      <article className="docs-content">
-        <p className="breadcrumb">Docs / {breadcrumb}</p>
-        <h1>{title}</h1>
-        <p className="docs-lead">{description}</p>
+    <DocsPage
+      breadcrumb={{ enabled: true }}
+      className="docs-content work-docs-page"
+      footer={{ enabled: false }}
+      id="main-content"
+      tableOfContent={{ enabled: toc.length > 0 }}
+      toc={toc.map((item) => ({
+        depth: 2,
+        title: item.label,
+        url: `#${item.id}`,
+      }))}
+    >
+      <span className="sr-only">{breadcrumb}</span>
+      <DocsTitle>{title}</DocsTitle>
+      <DocsDescription className="docs-lead">{description}</DocsDescription>
+      <DocsBody className="work-docs-body">
         {children}
-      </article>
-      <aside className="docs-toc" aria-label="On this page">
-        <p>On this page</p>
-        {toc.map((item) => <a href={`#${item.id}`} key={item.id}>{item.label}</a>)}
-      </aside>
-    </main>
+      </DocsBody>
+    </DocsPage>
   );
 }
 
 export function CodeBlock({ code, label }: { code: string; label?: string }) {
   return (
-    <div className="docs-code">
-      {label ? <span className="docs-code-label">{label}</span> : null}
+    <FumadocsCodeBlock className="docs-code" title={label}>
       <pre><code>{code}</code></pre>
-      <div className="docs-code-copy"><CopyButton text={code} /></div>
-    </div>
+    </FumadocsCodeBlock>
   );
 }
 
 export function DocsCallout({ children, tone = "info" }: { children: ReactNode; tone?: "info" | "warning" }) {
-  return <div className={`docs-callout ${tone}`}>{children}</div>;
+  return <Callout type={tone === "warning" ? "warning" : "info"}>{children}</Callout>;
 }
 
 export function DocsNext({ href, label, description }: { href: string; label: string; description: string }) {

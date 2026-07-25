@@ -4,49 +4,40 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { docsNavigation } from "@/components/docs-navigation";
+import { docsSearchLinks } from "@/lib/docs";
 
-const pages = docsNavigation.flatMap((group) =>
-  group.links.map(([label, href]) => ({ label, href, group: group.label })),
-);
+interface DocsSearchDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
 
-export function DocsSearch() {
-  const [open, setOpen] = useState(false);
+export function DocsSearchDialog({ open, onOpenChange }: DocsSearchDialogProps) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return needle
-      ? pages.filter((page) => `${page.group} ${page.label}`.toLowerCase().includes(needle))
-      : pages;
+      ? docsSearchLinks.filter((page) => `${page.group} ${page.name}`.toLowerCase().includes(needle))
+      : docsSearchLinks;
   }, [query]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setOpen(true);
-      }
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") onOpenChange(false);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [onOpenChange]);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
     else setQuery("");
   }, [open]);
 
-  return (
-    <>
-      <button className="docs-search-trigger" onClick={() => setOpen(true)} type="button">
-        <span aria-hidden="true">⌕</span>
-        <span>Search docs</span>
-        <kbd>Ctrl K</kbd>
-      </button>
-      {open ? createPortal(
-        <div className="docs-search-backdrop" onMouseDown={() => setOpen(false)} role="presentation">
+  if (!open) return null;
+
+  return createPortal(
+        <div className="docs-search-backdrop" onMouseDown={() => onOpenChange(false)} role="presentation">
           <div aria-label="Search documentation" aria-modal="true" className="docs-search-dialog" onMouseDown={(event) => event.stopPropagation()} role="dialog">
             <div className="docs-search-field">
               <label className="sr-only" htmlFor="docs-search">Search documentation</label>
@@ -58,12 +49,12 @@ export function DocsSearch() {
                 type="search"
                 value={query}
               />
-              <button aria-label="Close search" onClick={() => setOpen(false)} type="button">Esc</button>
+              <button aria-label="Close search" onClick={() => onOpenChange(false)} type="button">Esc</button>
             </div>
             <div className="docs-search-results">
               {results.length ? results.map((page) => (
-                <Link href={page.href} key={page.href} onClick={() => setOpen(false)}>
-                  <span>{page.label}</span>
+                <Link href={page.url} key={page.url} onClick={() => onOpenChange(false)}>
+                  <span>{page.name}</span>
                   <small>{page.group}</small>
                 </Link>
               )) : <p>No documentation page found.</p>}
@@ -71,7 +62,5 @@ export function DocsSearch() {
           </div>
         </div>,
         document.body,
-      ) : null}
-    </>
   );
 }
