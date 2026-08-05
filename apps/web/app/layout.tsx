@@ -71,6 +71,13 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          defer
+          src="https://umami.arturf.ch/script.js"
+          data-website-id="89eaaa6e-13c0-4ed9-8f1f-8889a821cc7c"
+        />
+      </head>
       <body>
         <a className="skip-link" href="#main-content">
           Skip to content
