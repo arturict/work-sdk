@@ -89,6 +89,7 @@ test("site includes crawl and social metadata", async () => {
   assert.match(site, /text\/markdown/);
   assert.match(sitemap, /\/docs/);
   assert.match(robots, /sitemap\.xml/);
+  assert.match(robots, /OAI-SearchBot/);
 });
 
 test("Umami privacy guard preserves only safe campaign context", async () => {
