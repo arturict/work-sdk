@@ -2,12 +2,15 @@
 
 import { useEffect } from "react";
 
+import { analyticsPrivacyGuard, umamiWebsiteId } from "@/lib/analytics";
+
 type UmamiData = Record<string, string | number | boolean>;
 type LandingEvent = "landing-cta" | "landing-section-view" | "landing-scroll-depth" | "landing-engaged-time";
 
 declare global {
   interface Window {
     umami?: { track: (event?: string, data?: UmamiData) => void };
+    workSdkAnalyticsBeforeSend?: (type: string, payload: unknown) => unknown;
     workSdkTrack?: (event: string, data?: UmamiData) => void;
   }
 }
@@ -34,6 +37,22 @@ const eventData = (name: LandingEvent, data: UmamiData): UmamiData | undefined =
 
 export function LandingAnalytics() {
   useEffect(() => {
+    const privacyScript = document.createElement("script");
+    privacyScript.id = "work-sdk-analytics-privacy";
+    privacyScript.text = analyticsPrivacyGuard;
+    document.head.append(privacyScript);
+
+    const umamiScript = document.createElement("script");
+    umamiScript.id = "work-sdk-umami";
+    umamiScript.src = "https://umami.arturf.ch/script.js";
+    umamiScript.async = true;
+    umamiScript.dataset.autoTrack = "false";
+    umamiScript.dataset.beforeSend = "workSdkAnalyticsBeforeSend";
+    umamiScript.dataset.doNotTrack = "true";
+    umamiScript.dataset.excludeHash = "true";
+    umamiScript.dataset.websiteId = umamiWebsiteId;
+    document.head.append(umamiScript);
+
     const track = (name: string, data: UmamiData = {}) => {
       if (!["landing-cta", "landing-section-view", "landing-scroll-depth", "landing-engaged-time"].includes(name)) return;
       const bounded = eventData(name as LandingEvent, data);
@@ -97,6 +116,10 @@ export function LandingAnalytics() {
       observer.disconnect();
       if (pageviewTimer) window.clearTimeout(pageviewTimer);
       timers.forEach(window.clearTimeout);
+      privacyScript.remove();
+      umamiScript.remove();
+      delete window.umami;
+      delete window.workSdkAnalyticsBeforeSend;
       delete window.workSdkTrack;
     };
   }, []);

@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Script from "next/script";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { ArrowIcon, CheckIcon, LayersIcon, RefreshIcon, ShieldIcon, TerminalIcon } from "@/components/icons";
 import { LandingAnalytics } from "@/components/landing-analytics";
 import { Workbench } from "@/components/workbench";
-import { analyticsPrivacyGuard, umamiWebsiteId } from "@/lib/analytics";
 import { createPageMetadata, site } from "@/lib/site";
 
 export const metadata: Metadata = createPageMetadata({
@@ -96,17 +94,6 @@ export default function HomePage() {
 
   return (
     <main id="main-content">
-      <Script id="work-sdk-analytics-privacy" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: analyticsPrivacyGuard }} />
-      <Script
-        id="work-sdk-umami"
-        strategy="afterInteractive"
-        src="https://umami.arturf.ch/script.js"
-        data-auto-track="false"
-        data-before-send="workSdkAnalyticsBeforeSend"
-        data-do-not-track="true"
-        data-exclude-hash="true"
-        data-website-id={umamiWebsiteId}
-      />
       <LandingAnalytics />
       <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} type="application/ld+json" />
 
