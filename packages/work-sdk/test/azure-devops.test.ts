@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   WorkAuthenticationError,
+  WorkAuthorizationError,
   WorkConflictError,
   WorkRateLimitError,
   WorkUnsupportedError,
@@ -141,6 +142,7 @@ describe("Azure DevOps adapter", () => {
     const updated = await adapter.update("42", { title: "New title", parentId: "11" }, { expectedRevision: "7" });
     expect(updated).toMatchObject({ title: "New title", parentId: "11", revision: "8" });
     expect(calls[1]).toMatchObject({ method: "PATCH", body: [
+      { op: "test", path: "/fields/System.TeamProject", value: "Platform" },
       { op: "test", path: "/rev", value: 7 },
       { op: "add", path: "/fields/System.Title", value: "New title" },
       { op: "remove", path: "/relations/0" },
@@ -165,12 +167,23 @@ describe("Azure DevOps adapter", () => {
 
   it("adds Markdown comments and normalizes authors", async () => {
     const fetcher = vi.fn<WorkFetch>(async (url, init) => {
+      if (!init?.method) return json(item());
       expect(String(url)).toContain("format=markdown&api-version=7.1-preview.4");
       expect(JSON.parse(String(init?.body))).toEqual({ text: "Deployed" });
       return json({ id: 9, text: "Deployed", createdDate: "2026-01-03T00:00:00Z", createdBy: { id: "user-1", displayName: "Ada" } });
     });
     const comment = await azureDevOpsWorkAdapter({ ...baseOptions, fetch: fetcher }).addComment("42", { body: "Deployed" });
     expect(comment).toMatchObject({ id: "9", body: "Deployed", author: { id: "user-1", displayName: "Ada" } });
+  });
+
+  it("rejects cross-project reads and mutations", async () => {
+    const fetcher = vi.fn<WorkFetch>(async () => json(item({ fields: { "System.TeamProject": "Secret" } })));
+    const adapter = azureDevOpsWorkAdapter({ ...baseOptions, fetch: fetcher });
+
+    await expect(adapter.get("42")).rejects.toBeInstanceOf(WorkAuthorizationError);
+    await expect(adapter.update("42", { title: "Cross-project edit" })).rejects.toBeInstanceOf(WorkAuthorizationError);
+    await expect(adapter.addComment("42", { body: "Cross-project comment" })).rejects.toBeInstanceOf(WorkAuthorizationError);
+    expect(fetcher.mock.calls.every(([, init]) => !init?.method)).toBe(true);
   });
 
   it("fails closed when Azure rules modify a requested field", async () => {
