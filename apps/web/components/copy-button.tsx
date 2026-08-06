@@ -15,12 +15,12 @@ export function CopyButton({ label = "Copy", text }: { label?: string; text: str
   async function copy() {
     try {
       await navigator.clipboard.writeText(text);
-      window.umami?.track("code-copy", { location: "documentation", result: "success", path: window.location.pathname });
+      window.workSdkTrack?.("landing-cta", { action: "copy-code", location: "documentation", target: "example" });
       setCopied(true);
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => setCopied(false), 1500);
     } catch {
-      window.umami?.track("code-copy", { location: "documentation", result: "failure", path: window.location.pathname });
+      window.workSdkTrack?.("landing-cta", { action: "copy-code-failed", location: "documentation", target: "example" });
       setCopied(false);
     }
   }

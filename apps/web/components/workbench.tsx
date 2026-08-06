@@ -92,11 +92,11 @@ export function Workbench() {
   async function copy() {
     try {
       await navigator.clipboard.writeText(source);
-      window.umami?.track("code-copy", { location: "workbench", provider: provider.key, result: "success", path: window.location.pathname });
+      window.workSdkTrack?.("landing-cta", { action: "copy-code", location: "workbench", target: provider.key });
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1300);
     } catch {
-      window.umami?.track("code-copy", { location: "workbench", provider: provider.key, result: "failure", path: window.location.pathname });
+      window.workSdkTrack?.("landing-cta", { action: "copy-code-failed", location: "workbench", target: provider.key });
       setCopied(false);
     }
   }
@@ -106,7 +106,7 @@ export function Workbench() {
       <div className="workbench-topbar">
         <div className="traffic-lights" aria-hidden="true"><span /><span /><span /></div>
         <span className="workbench-title">agent-safe-update.ts</span>
-        <button aria-live="polite" className="icon-copy" onClick={copy} type="button" data-analytics-action="code-copy-attempt" data-analytics-location="workbench" data-analytics-destination={provider.key}>
+        <button aria-live="polite" className="icon-copy" onClick={copy} type="button">
           {copied ? <CheckIcon /> : <CopyIcon />}
           <span>{copied ? "Copied" : "Copy"}</span>
         </button>
@@ -120,8 +120,9 @@ export function Workbench() {
             key={name}
             onClick={() => setProviderName(name)}
             data-analytics-action="provider-select"
+            data-analytics-event="landing-cta"
             data-analytics-location="workbench"
-            data-analytics-destination={providers[name].key}
+            data-analytics-target={providers[name].key}
             role="tab"
             type="button"
           >
@@ -142,8 +143,9 @@ export function Workbench() {
                 key={value}
                 onClick={() => setStage(value)}
                 data-analytics-action="lifecycle-select"
+                data-analytics-event="landing-cta"
                 data-analytics-location="workbench"
-                data-analytics-destination={value}
+                data-analytics-target={value}
                 type="button"
               >
                 <span>{index + 1}</span>{value}

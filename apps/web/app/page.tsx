@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Script from "next/script";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { ArrowIcon, CheckIcon, LayersIcon, RefreshIcon, ShieldIcon, TerminalIcon } from "@/components/icons";
+import { LandingAnalytics } from "@/components/landing-analytics";
 import { Workbench } from "@/components/workbench";
+import { analyticsPrivacyGuard, umamiWebsiteId } from "@/lib/analytics";
 import { createPageMetadata, site } from "@/lib/site";
 
 export const metadata: Metadata = createPageMetadata({
@@ -93,17 +96,29 @@ export default function HomePage() {
 
   return (
     <main id="main-content">
+      <Script id="work-sdk-analytics-privacy" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: analyticsPrivacyGuard }} />
+      <Script
+        id="work-sdk-umami"
+        strategy="afterInteractive"
+        src="https://umami.arturf.ch/script.js"
+        data-auto-track="false"
+        data-before-send="workSdkAnalyticsBeforeSend"
+        data-do-not-track="true"
+        data-exclude-hash="true"
+        data-website-id={umamiWebsiteId}
+      />
+      <LandingAnalytics />
       <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} type="application/ld+json" />
 
-      <section className="hero hero-centered shell">
+      <section className="hero hero-centered shell" id="hero">
         <div className="hero-copy">
           <h1>Work across trackers.<br /><span>Keep one safe API.</span></h1>
           <p className="hero-summary">
             One typed TypeScript SDK for GitHub, GitLab, Linear, Jira, and Azure DevOps. Preview the exact change, coordinate retries, then commit with an explicit receipt.
           </p>
           <div className="hero-actions">
-            <Link className="button primary" href="/docs/getting-started">Start building <ArrowIcon /></Link>
-            <a className="button secondary" href="/go/github?from=hero">Browse source</a>
+            <Link className="button primary" href="/docs/getting-started" data-analytics-action="start-building" data-analytics-event="landing-cta" data-analytics-location="hero" data-analytics-target="docs">Start building <ArrowIcon /></Link>
+            <a className="button secondary" href="/go/github?from=hero" data-analytics-action="browse-source" data-analytics-event="landing-cta" data-analytics-location="hero" data-analytics-target="github">Browse source</a>
           </div>
           <dl className="hero-metrics" aria-label="Project quality">
             <div><dt>5</dt><dd>adapters</dd></div>
@@ -129,7 +144,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="providers-title" className="provider-strip">
+      <section aria-labelledby="providers-title" className="provider-strip" id="providers">
         <div className="shell provider-strip-inner">
           <p id="providers-title">One normalized model for</p>
           <div className="provider-list"><span><BrandLogo brand="github" /> GitHub Issues</span><span><BrandLogo brand="gitlab" /> GitLab</span><span><BrandLogo brand="linear" /> Linear</span><span><BrandLogo brand="jira" /> Jira</span><span><BrandLogo brand="azure-devops" /> Azure DevOps</span></div>
@@ -137,7 +152,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="section shell demo-section">
+      <section className="section shell demo-section" id="demo">
         <div className="section-heading centered">
           <p className="kicker">One safe-write protocol</p>
           <h2>Write one change.<br />Commit through any adapter.</h2>
@@ -146,7 +161,7 @@ export default function HomePage() {
         <Workbench />
       </section>
 
-      <section className="section shell problem-section">
+      <section className="section shell problem-section" id="problem">
         <div className="section-heading">
           <p className="kicker">Built for real side effects</p>
           <h2>Agents can write code.<br />Trackers still make them guess.</h2>
@@ -159,7 +174,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="article-promo">
+      <section className="article-promo" id="engineering-guide">
         <Link className="shell article-promo-inner" href="/guides/agent-safe-work-tracker-writes">
           <span className="article-promo-label">New engineering guide</span>
           <div>
@@ -185,7 +200,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="section shell features-section">
+      <section className="section shell features-section" id="features">
         <div className="section-heading">
           <p className="kicker">Small API, serious guarantees</p>
           <h2>Infrastructure for trustworthy agent actions.</h2>
@@ -217,7 +232,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="section shell faq-section">
+      <section className="section shell faq-section" id="faq">
         <div className="section-heading"><p className="kicker">Straight answers</p><h2>Frequently asked.</h2></div>
         <div className="faq-list">
           <details><summary>Is Work SDK a hosted service?</summary><p>No. It is an open-source TypeScript library that runs in your application. You bring credentials for the trackers you already use.</p></details>
@@ -228,10 +243,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="final-cta">
+      <section className="final-cta" id="final-cta">
         <div className="shell final-cta-inner">
           <div><p className="kicker">Give agents a safer tool</p><h2>Ship work, not side effects.</h2><p>Start with one provider. Keep one API when your stack changes.</p></div>
-          <div className="hero-actions"><Link className="button inverted" href="/docs/getting-started">Get started <ArrowIcon /></Link><a className="button ghost-dark" href="/go/github?from=home-final">Star on GitHub</a></div>
+          <div className="hero-actions"><Link className="button inverted" href="/docs/getting-started" data-analytics-action="get-started" data-analytics-event="landing-cta" data-analytics-location="final" data-analytics-target="docs">Get started <ArrowIcon /></Link><a className="button ghost-dark" href="/go/github?from=home-final" data-analytics-action="star-github" data-analytics-event="landing-cta" data-analytics-location="final" data-analytics-target="github">Star on GitHub</a></div>
         </div>
       </section>
     </main>

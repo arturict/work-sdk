@@ -238,6 +238,7 @@ tbody th { font-weight: 570; }
 .footer-note { margin: 14px 0 0; color: var(--muted); font-size: 12px; }
 .footer-links { display: flex; gap: 25px; color: var(--muted); font-size: 12px; }
 .footer-legal { grid-column: 1 / -1; margin: 20px 0 0; border-top: 1px solid var(--line); color: var(--faint); font-size: 10px; padding-top: 22px; }
+.legal-page { max-width: 760px; padding-block: 96px 120px; }
 
 /* Engineering articles */
 .article { padding-block: 86px 120px; }
