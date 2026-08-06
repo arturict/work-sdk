@@ -52,6 +52,9 @@ test("site includes crawl and social metadata", async () => {
   assert.match(layout, /89eaaa6e-13c0-4ed9-8f1f-8889a821cc7c/);
   assert.match(analytics, /@vercel\/analytics\/next/);
   assert.match(analytics, /url\.search = ""/);
+  assert.match(analytics, /section-view/);
+  assert.match(analytics, /scroll-depth/);
+  assert.match(analytics, /interaction/);
   assert.match(site, /createPageMetadata/);
   assert.match(site, /canonical: path/);
   assert.match(site, /max-image-preview/);

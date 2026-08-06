@@ -92,9 +92,11 @@ export function Workbench() {
   async function copy() {
     try {
       await navigator.clipboard.writeText(source);
+      window.umami?.track("code-copy", { location: "workbench", provider: provider.key, result: "success", path: window.location.pathname });
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1300);
     } catch {
+      window.umami?.track("code-copy", { location: "workbench", provider: provider.key, result: "failure", path: window.location.pathname });
       setCopied(false);
     }
   }
@@ -104,7 +106,7 @@ export function Workbench() {
       <div className="workbench-topbar">
         <div className="traffic-lights" aria-hidden="true"><span /><span /><span /></div>
         <span className="workbench-title">agent-safe-update.ts</span>
-        <button aria-live="polite" className="icon-copy" onClick={copy} type="button">
+        <button aria-live="polite" className="icon-copy" onClick={copy} type="button" data-analytics-action="code-copy-attempt" data-analytics-location="workbench" data-analytics-destination={provider.key}>
           {copied ? <CheckIcon /> : <CopyIcon />}
           <span>{copied ? "Copied" : "Copy"}</span>
         </button>
@@ -117,6 +119,9 @@ export function Workbench() {
             className={providerName === name ? "active" : ""}
             key={name}
             onClick={() => setProviderName(name)}
+            data-analytics-action="provider-select"
+            data-analytics-location="workbench"
+            data-analytics-destination={providers[name].key}
             role="tab"
             type="button"
           >
@@ -136,6 +141,9 @@ export function Workbench() {
                 className={stage === value ? "active" : ""}
                 key={value}
                 onClick={() => setStage(value)}
+                data-analytics-action="lifecycle-select"
+                data-analytics-location="workbench"
+                data-analytics-destination={value}
                 type="button"
               >
                 <span>{index + 1}</span>{value}

@@ -40,7 +40,7 @@ export function DocsSearch() {
 
   return (
     <>
-      <button className="docs-search-trigger" onClick={() => setOpen(true)} type="button">
+      <button className="docs-search-trigger" onClick={() => setOpen(true)} type="button" data-analytics-action="docs-search-open">
         <span aria-hidden="true">⌕</span>
         <span>Search docs</span>
         <kbd>Ctrl K</kbd>
@@ -58,11 +58,11 @@ export function DocsSearch() {
                 type="search"
                 value={query}
               />
-              <button aria-label="Close search" onClick={() => setOpen(false)} type="button">Esc</button>
+              <button aria-label="Close search" onClick={() => setOpen(false)} type="button" data-analytics-action="docs-search-close">Esc</button>
             </div>
             <div className="docs-search-results">
               {results.length ? results.map((page) => (
-                <Link href={page.href} key={page.href} onClick={() => setOpen(false)}>
+                <Link href={page.href} key={page.href} onClick={() => setOpen(false)} data-analytics-action="docs-search-result" data-analytics-destination={page.href}>
                   <span>{page.label}</span>
                   <small>{page.group}</small>
                 </Link>
