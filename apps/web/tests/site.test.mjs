@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import vm from "node:vm";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -41,6 +42,9 @@ test("all machine-readable discovery routes exist", async () => {
 test("site includes crawl and social metadata", async () => {
   const layout = await read("app/layout.tsx");
   const analytics = await read("components/site-analytics.tsx");
+  const landingAnalytics = await read("components/landing-analytics.tsx");
+  const homepage = await read("app/page.tsx");
+  const privacyGuard = await read("lib/analytics.ts");
   const site = await read("lib/site.ts");
   const sitemap = await read("app/sitemap.ts");
   const robots = await read("app/robots.ts");
@@ -48,8 +52,36 @@ test("site includes crawl and social metadata", async () => {
   assert.match(layout, /twitter/);
   assert.match(layout, /manifest\.webmanifest/);
   assert.match(layout, /SiteAnalytics/);
+  assert.doesNotMatch(layout, /umami\.arturf\.ch|LandingAnalytics|workSdkAnalyticsBeforeSend/);
+  assert.doesNotMatch(homepage, /umami\.arturf\.ch|work-sdk-umami|workSdkAnalyticsBeforeSend/);
+  assert.match(privacyGuard, /89eaaa6e-13c0-4ed9-8f1f-8889a821cc7c/);
+  assert.match(homepage, /<LandingAnalytics \/>/);
   assert.match(analytics, /@vercel\/analytics\/next/);
   assert.match(analytics, /url\.search = ""/);
+  assert.match(landingAnalytics, /landing-cta/);
+  assert.match(landingAnalytics, /landing-section-view/);
+  assert.match(landingAnalytics, /landing-scroll-depth/);
+  assert.match(landingAnalytics, /landing-engaged-time/);
+  assert.match(landingAnalytics, /https:\/\/umami\.arturf\.ch\/script\.js/);
+  assert.match(landingAnalytics, /dataset\.autoTrack = "false"/);
+  assert.match(landingAnalytics, /dataset\.beforeSend = "workSdkAnalyticsBeforeSend"/);
+  assert.match(landingAnalytics, /dataset\.doNotTrack = "true"/);
+  assert.match(landingAnalytics, /dataset\.excludeHash = "true"/);
+  assert.match(landingAnalytics, /window\.umami\.track\(\)/);
+  assert.match(landingAnalytics, /new Set<string>/);
+  assert.match(landingAnalytics, /new Set<number>/);
+  assert.match(landingAnalytics, /\[25, 50, 75, 100\]/);
+  assert.match(landingAnalytics, /\[30, 60, 120\]/);
+  assert.match(landingAnalytics, /privacyScript\.remove\(\)/);
+  assert.match(landingAnalytics, /umamiScript\.remove\(\)/);
+  assert.match(landingAnalytics, /delete window\.umami/);
+  assert.doesNotMatch(landingAnalytics, /utm_|URLSearchParams|document\.referrer|textContent|location\.search/);
+  assert.match(privacyGuard, /utm_campaign/);
+  assert.match(privacyGuard, /url\.hash = ""/);
+  assert.match(privacyGuard, /url\.origin === window\.location\.origin/);
+  assert.match(privacyGuard, /globalPrivacyControl === true/);
+  assert.doesNotMatch(privacyGuard, /localStorage|sessionStorage|cookie|identify/);
+  assert.match(homepage, /data-analytics-event="landing-cta"/);
   assert.match(site, /createPageMetadata/);
   assert.match(site, /canonical: path/);
   assert.match(site, /max-image-preview/);
@@ -57,6 +89,46 @@ test("site includes crawl and social metadata", async () => {
   assert.match(site, /text\/markdown/);
   assert.match(sitemap, /\/docs/);
   assert.match(robots, /sitemap\.xml/);
+  assert.match(robots, /OAI-SearchBot/);
+});
+
+test("Umami privacy guard preserves only safe campaign context", async () => {
+  const source = await read("lib/analytics.ts");
+  const script = source.match(/String\.raw`([\s\S]*?)`;/)?.[1];
+  assert.ok(script);
+
+  const window = { location: { origin: "https://work-sdk.vercel.app" } };
+  vm.runInNewContext(script, { URL, URLSearchParams, window });
+  const result = window.workSdkAnalyticsBeforeSend("event", {
+    name: "landing-cta",
+    url: "https://work-sdk.vercel.app/?utm_source=reddit&utm_medium=social&utm_campaign=oss-launch&email=private%40example.com&gclid=secret#private",
+    referrer: "https://www.reddit.com/r/opensource/comments/private?token=secret",
+  });
+
+  assert.equal(result.url, "https://work-sdk.vercel.app/?utm_source=reddit&utm_medium=social&utm_campaign=oss-launch");
+  assert.equal(result.referrer, "https://www.reddit.com");
+  assert.equal(result.name, "landing-cta");
+  assert.doesNotMatch(JSON.stringify(result), /private|example|gclid|token|secret/);
+
+  const privateWindow = {
+    location: { origin: "https://work-sdk.vercel.app" },
+    navigator: { globalPrivacyControl: true },
+  };
+  vm.runInNewContext(script, { URL, URLSearchParams, window: privateWindow });
+  assert.equal(privateWindow.workSdkAnalyticsBeforeSend("event", { name: "landing-cta" }), false);
+});
+
+test("public analytics disclosure matches the implementation boundary", async () => {
+  const privacy = await read("app/privacy/page.tsx");
+  const footer = await read("components/site-shell.tsx");
+  const sitemap = await read("app/sitemap.ts");
+  assert.match(privacy, /self-hosted Umami/);
+  assert.match(privacy, /Vercel Web Analytics/);
+  assert.match(privacy, /Non-UTM query parameters/);
+  assert.match(privacy, /Global Privacy Control/);
+  assert.match(privacy, /Installing or running the package does not activate/);
+  assert.match(footer, /Analytics & privacy/);
+  assert.match(sitemap, /\/privacy/);
 });
 
 test("homepage exposes software and visible FAQ structured data", async () => {
@@ -91,6 +163,9 @@ test("interactive controls expose accessible state", async () => {
   assert.match(workbench, /aria-selected/);
   assert.match(workbench, /aria-live/);
   assert.match(workbench, /aria-pressed/);
+  assert.match(workbench, /workSdkTrack\?\.\("landing-cta", \{ action: "copy-code"/);
+  assert.match(workbench, /workSdkTrack\?\.\("landing-cta", \{ action: "copy-code-failed"/);
+  assert.doesNotMatch(workbench, /code-copy-attempt/);
 });
 
 test("contrast surfaces remain readable in light and dark color schemes", async () => {

@@ -17,9 +17,9 @@ export function SiteHeader() {
           <Link href="/guides/agent-safe-work-tracker-writes">Safety guide</Link>
           <Link href="/#adapters">Adapters</Link>
           <Link href="/#workflow">Safe writes</Link>
-          <a href="/go/github?from=header">GitHub</a>
+          <a href="/go/github?from=header" data-analytics-action="open-github" data-analytics-event="landing-cta" data-analytics-location="header" data-analytics-target="github">GitHub</a>
         </div>
-        <a aria-label={`${installCommand} on npm`} className="install-pill" href="/go/npm?from=header">
+        <a aria-label={`${installCommand} on npm`} className="install-pill" href="/go/npm?from=header" data-analytics-action="install-package" data-analytics-event="landing-cta" data-analytics-location="header" data-analytics-target="npm">
           <span className="prompt">$</span> {installCommand}
         </a>
       </nav>
@@ -44,6 +44,7 @@ export function SiteFooter() {
           <Link href="/docs/examples">Examples</Link>
           <Link href="/docs/providers">Providers</Link>
           <Link href="/guides/agent-safe-work-tracker-writes">Safety guide</Link>
+          <Link href="/privacy">Analytics & privacy</Link>
           <a href="/go/github?from=footer">Source</a>
           <a href="/go/npm?from=footer">npm</a>
           <a href="/llms.txt">llms.txt</a>

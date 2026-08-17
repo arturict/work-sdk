@@ -92,9 +92,11 @@ export function Workbench() {
   async function copy() {
     try {
       await navigator.clipboard.writeText(source);
+      window.workSdkTrack?.("landing-cta", { action: "copy-code", location: "workbench", target: provider.key });
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1300);
     } catch {
+      window.workSdkTrack?.("landing-cta", { action: "copy-code-failed", location: "workbench", target: provider.key });
       setCopied(false);
     }
   }
@@ -117,6 +119,10 @@ export function Workbench() {
             className={providerName === name ? "active" : ""}
             key={name}
             onClick={() => setProviderName(name)}
+            data-analytics-action="provider-select"
+            data-analytics-event="landing-cta"
+            data-analytics-location="workbench"
+            data-analytics-target={providers[name].key}
             role="tab"
             type="button"
           >
@@ -136,6 +142,10 @@ export function Workbench() {
                 className={stage === value ? "active" : ""}
                 key={value}
                 onClick={() => setStage(value)}
+                data-analytics-action="lifecycle-select"
+                data-analytics-event="landing-cta"
+                data-analytics-location="workbench"
+                data-analytics-target={value}
                 type="button"
               >
                 <span>{index + 1}</span>{value}
