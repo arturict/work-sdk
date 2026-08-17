@@ -1,6 +1,6 @@
-import { llmsFull } from "@/lib/machine-content";
+import { llmsFull } from "@/lib/llms";
 import { textResponse } from "@/lib/responses";
 
-export function GET() {
-  return textResponse(llmsFull);
+export async function GET() {
+  return textResponse(await llmsFull());
 }

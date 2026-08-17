@@ -1,0 +1,24 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+.work-docs-layout {
+  --fd-layout-width: 1400px;
+  min-height: calc(100dvh - 68px);
+  background: var(--bg);
+}
+
+.work-docs-layout #nd-sidebar {
+  border-color: var(--line);
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+}
+
+.work-docs-layout #nd-page {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .work-docs-layout {
+    min-height: calc(100dvh - 62px);
+  }
+}

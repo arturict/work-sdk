@@ -163,8 +163,8 @@ export default function AgentSafeWritesGuide() {
                   <tbody>
                     <tr><td>GitHub Issues</td><td>Re-read and compare the normalized revision before mutation</td><td>State is open/closed while project workflows may live elsewhere</td></tr>
                     <tr><td>GitLab</td><td>Re-read and compare before mutation</td><td>Unknown labels can become new project labels unless writes are guarded</td></tr>
-                    <tr><td>Linear</td><td>Re-read and compare update timestamps</td><td>States are team-specific identifiers, not portable names</td></tr>
-                    <tr><td>Jira Cloud</td><td>Re-read plus provider version checks where available</td><td>Status changes are transitions; fields depend on project configuration</td></tr>
+                    <tr><td>Linear</td><td>Re-read and compare an opaque revision fingerprint before mutation</td><td>States are team-specific identifiers, not portable names</td></tr>
+                    <tr><td>Jira Cloud</td><td>Re-read and compare an opaque revision fingerprint before mutation</td><td>Status changes are transitions; fields depend on project configuration</td></tr>
                     <tr><td>Azure DevOps</td><td>Atomic JSON Patch revision test</td><td>Work-item types, states, and fields depend on the process template</td></tr>
                   </tbody>
                 </table>

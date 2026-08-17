@@ -19,7 +19,6 @@ import type {
   WorkComment,
   WorkItem,
   WorkItemKind,
-  WorkItemPriority,
   WorkItemState,
   WorkPage,
   WorkUser,

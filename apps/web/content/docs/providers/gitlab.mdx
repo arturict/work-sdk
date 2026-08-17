@@ -1,0 +1,116 @@
+---
+title: GitLab
+description: Use one conservative REST v4 adapter for GitLab.com and GitLab Self-Managed. The defaults favor visible failures over silent provider-side creation or lossy type guesses.
+seoTitle: GitLab Issues TypeScript SDK adapter
+keywords:
+  - GitLab Issues TypeScript SDK
+  - GitLab Self-Managed API
+  - GitLab AI agent integration
+---
+
+## Configure the adapter [#configure]
+
+```ts title="work.ts"
+import { createWorkClient } from "work-sdk";
+import { gitlab } from "work-sdk/gitlab";
+
+const work = createWorkClient({
+  adapter: gitlab({
+    project: "acme/platform",
+    token: process.env.GITLAB_TOKEN!,
+  }),
+});
+```
+
+`project` accepts a numeric GitLab project ID or a full path such as `group/subgroup/project`. Work SDK URL-encodes the path exactly once and keeps issue IDs project-scoped. The adapter also accepts an optional `fetch` implementation for custom transports, proxies, or tests.
+
+## Authentication [#authentication]
+
+The `token` shorthand sends a GitLab private-token header and works with personal, project, or group access tokens where the GitLab tier permits them. Use explicit OAuth auth when the credential is an OAuth access token.
+
+```ts title="OAuth"
+gitlab({
+  project: 77,
+  auth: {
+    type: "oauth",
+    token: process.env.GITLAB_OAUTH_TOKEN!,
+  },
+});
+```
+
+<Callout type="warn">`token` and `auth` are mutually exclusive. Credentials belong in server-side environment variables and never in browser code, prompts, prepared plans, or logs.</Callout>
+
+## GitLab Self-Managed [#self-managed]
+
+```ts title="self-managed.ts"
+gitlab({
+  project: "platform/backend",
+  token: process.env.GITLAB_TOKEN!,
+  apiBaseUrl: "https://gitlab.example.com/api/v4",
+});
+```
+
+Point `apiBaseUrl` at the instance REST v4 root. Rate limits, enabled issue types, tiers, and access-token rules can differ from GitLab.com, so treat instance policy as runtime configuration rather than SDK defaults.
+
+## Guarded labels [#labels]
+
+GitLab creates missing labels when an issue write includes them. That is a second side effect hidden inside a normal issue mutation, so Work SDK resolves project labels first and rejects unknown values by default.
+
+```ts title="create-issue.ts"
+const change = await work.prepareCreate({
+  title: "Reconcile deployment result",
+  labels: ["agent-safe"],
+});
+
+// The adapter first verifies that "agent-safe" already exists.
+// Missing labels fail before GitLab can create them as a side effect.
+await work.commit(change, {
+  idempotencyKey: "deployment:run_123:issue",
+});
+```
+
+Set `allowCreateLabels: true` only when the application policy explicitly allows label creation. The option changes a safety boundary and should not be enabled merely to suppress validation errors.
+
+## Issue types [#types]
+
+GitLab REST exposes `issue`, `task`, `incident`, and `test_case`. Work SDK maps issue and task directly. Bug, story, epic, and subtask have no universal GitLab equivalent and fail unless you configure an explicit map.
+
+```ts title="explicit-kind-map.ts"
+gitlab({
+  project: "acme/platform",
+  token: process.env.GITLAB_TOKEN!,
+  issueTypeByKind: {
+    bug: "issue",
+    story: "issue",
+  },
+});
+```
+
+## Assignees [#assignees]
+
+Use numeric GitLab user IDs in `assigneeIds`. Multiple assignees are tier-dependent and remain disabled by default. Set `multipleAssignees: true` only after confirming the target instance supports the behavior.
+
+## Search and pagination [#pagination]
+
+`list` forwards text search, assignee username, labels, and opened/closed state filters. The adapter uses opaque `gitlab:page:…` cursors and reads `X-Next-Page` or the standard Link header without depending on total-count headers.
+
+```ts title="list.ts"
+const page = await work.list({
+  query: "deployment",
+  labels: ["agent-safe"],
+  state: ["unstarted", "completed"],
+  limit: 50,
+});
+
+if (page.nextCursor) {
+  await work.list({ cursor: page.nextCursor, limit: 50 });
+}
+```
+
+## Concurrency and retries [#concurrency]
+
+The adapter fingerprints the issue fields that affect normalized behavior, then re-reads immediately before an update. GitLab REST does not expose an atomic issue revision precondition, so a small race window remains between that read and the PUT request.
+
+<Callout type="info">On `WorkConflictError`, discard the plan and prepare again. Always use a durable idempotency store for distributed workers because GitLab issue writes do not provide a universal native idempotency key.</Callout>
+
+<DocsNext href="/docs/guides/agents" label="Agent integration" description="Expose GitLab writes through narrow tools, inspectable plans, and explicit approval policy." />

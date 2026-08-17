@@ -7,5 +7,10 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@work-sdk/web"]
+  "ignore": [
+    "@work-sdk/web",
+    "@work-sdk/video",
+    "@work-sdk/example-approval-cli",
+    "@work-sdk/example-webhook-bot"
+  ]
 }

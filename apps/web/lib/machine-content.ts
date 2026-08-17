@@ -113,36 +113,3 @@ Keep GitHub and GitLab tokens, Linear API keys, Jira API tokens, Azure DevOps En
 Read the complete documentation at ${site.url}/docs.
 `;
 
-export const llmsIndex = `# Work SDK
-
-> Agent-safe TypeScript SDK for GitHub Issues, GitLab, Linear, Jira, and Azure DevOps.
-
-## Primary documentation
-
-- [Documentation](${site.url}/docs): guided documentation index
-- [Getting started](${site.url}/docs/getting-started): first read and safe write
-- [Example apps](${site.url}/docs/examples): runnable approval CLI and signed webhook bot with fake credentials
-- [Safe writes](${site.url}/docs/concepts/safe-writes): integrity, concurrency, warnings, and idempotency
-- [Providers](${site.url}/docs/providers): capability and semantic comparison
-- [GitHub](${site.url}/docs/providers/github): permissions, identifiers, mappings, and safe writes
-- [GitLab](${site.url}/docs/providers/gitlab): GitLab.com, Self-Managed, auth, guarded labels, types, and concurrency
-- [Linear](${site.url}/docs/providers/linear): teams, workflow states, priorities, and safe writes
-- [Jira Cloud](${site.url}/docs/providers/jira): authentication, transitions, ADF, and workflow limits
-- [Azure DevOps](${site.url}/docs/providers/azure-devops): auth, custom processes, WIQL, and JSON Patch
-- [Client reference](${site.url}/docs/reference/client): methods and normalized types
-- [Errors](${site.url}/docs/reference/errors): error classes and retry policy
-- [Agent guide](${site.url}/docs/guides/agents): safe tool and approval boundaries
-- [Testing guide](${site.url}/docs/guides/testing): memory adapter and protocol tests
-- [Markdown homepage](${site.url}/index.md): concise project overview and quick example
-- [Agent guide](${site.url}/agents.md): operational rules for coding agents
-- [Full machine context](${site.url}/llms-full.txt): combined project and agent documentation
-
-## Project
-
-- [Source](${site.github})
-- [npm package](${site.npm})
-
-Work SDK is a local library, not a hosted service. Applications bring their own provider credentials.
-`;
-
-export const llmsFull = `${llmsIndex}\n---\n\n${markdownHomepage}\n---\n\n${agentGuide}`;

@@ -1,0 +1,162 @@
+---
+title: Azure DevOps
+description: A first-class Azure Boards adapter with Entra and PAT authentication, WIQL discovery, custom-process normalization, Markdown comments, priority mapping, hierarchy links, and native revision checks.
+seoTitle: Azure DevOps TypeScript SDK adapter
+keywords:
+  - Azure DevOps TypeScript SDK
+  - Azure DevOps work items API
+  - WIQL SDK
+---
+
+## Setup [#setup]
+
+```ts title="azure-work.ts"
+import { createWorkClient } from "work-sdk";
+import { azureDevOps } from "work-sdk/azure-devops";
+
+const work = createWorkClient({
+  adapter: azureDevOps({
+    organization: "acme",
+    project: "Platform",
+    auth: { type: "entra", token: accessToken },
+  }),
+});
+```
+
+The adapter targets Azure DevOps REST API 7.1. The organization and project are path-scoped, so an accidentally supplied foreign project is rejected rather than silently redirected. An optional `fetch` option accepts a custom `WorkFetch` implementation when you need to route requests through instrumented or proxied HTTP clients.
+
+## Authentication [#authentication]
+
+### Microsoft Entra ID
+
+Use Entra access tokens for production applications, service principals, or managed identities.
+
+```ts
+auth: { type: "entra", token: accessToken }
+```
+
+### Personal access token
+
+PATs are convenient for local scripts and prototypes. They are sent as Basic credentials with an empty username.
+
+```ts
+auth: { type: "pat", token: process.env.AZURE_DEVOPS_PAT! }
+```
+
+<Callout type="warn">
+PATs are long-lived credentials. Prefer Entra tokens in production, scope credentials to work-item access, rotate them, and keep them out of browser code and agent context.
+</Callout>
+
+## Custom processes [#custom-processes]
+
+Azure organizations can rename states and introduce custom work-item types. Reads must map provider names to the portable model; creates need the reverse mapping. Work SDK keeps both directions explicit.
+
+```ts title="custom-process.ts"
+const adapter = azureDevOps({
+  organization: "acme",
+  project: "Platform",
+  auth: { type: "entra", token: accessToken },
+
+  // Provider state name → normalized read/filter state
+  stateMap: {
+    "Ready for validation": "started",
+    "Released": "completed",
+  },
+
+  // Normalized write state → one concrete tenant state
+  stateNameByCanonical: {
+    completed: "Released",
+  },
+
+  // Provider type name → normalized read kind
+  workItemTypeMap: {
+    "Customer Request": "story",
+  },
+
+  // Normalized create kind → tenant-specific provider type
+  workItemTypeByKind: {
+    story: "Product Backlog Item",
+  },
+
+  defaultWorkItemType: "Task",
+});
+```
+
+Built-in defaults cover common Agile, Scrum, and Basic process names. Custom entries extend or override those case-insensitive defaults.
+
+## Read, search, and write [#operations]
+
+```ts title="azure-operations.ts"
+const page = await work.list({
+  query: "retry webhook",
+  state: "started",
+  labels: ["reliability"],
+  limit: 50,
+});
+
+const change = await work.prepareUpdate("42", {
+  state: "Ready for validation", // exact Azure state name
+  priority: "high",              // maps to Azure priority 2
+  assigneeIds: ["ada@example.com"],
+  labels: ["sdk", "agent-safe"],
+  parentId: "10",
+});
+
+await work.commit(change, {
+  idempotencyKey: "release:42:validation",
+});
+```
+
+Provider-native state values remain accepted. Canonical writes such as `completed` use `stateNameByCanonical`; if several tenant names map to the same canonical state and no inverse is configured, the adapter fails as ambiguous instead of guessing.
+
+## Field mapping [#fields]
+
+| Work SDK | Azure DevOps | Notes |
+| --- | --- | --- |
+| `title` | `System.Title` | Required on create |
+| `description` | `System.Description` | Returned as provider HTML |
+| `stateName` | `System.State` | Exact provider state |
+| `priority` | `Microsoft.VSTS.Common.Priority` | urgent/high/medium/low → 1/2/3/4 |
+| `assigneeIds[0]` | `System.AssignedTo` | Identity ID, email, or resolvable name |
+| `labels` | `System.Tags` | Semicolon-separated provider field |
+| `parentId` | Hierarchy-Reverse relation | Existing parent replaced atomically |
+| `revision` | `rev` | Opaque string to consumers |
+
+## WIQL search and pagination [#pagination]
+
+`list` builds an escaped WIQL query, fetches ordered IDs, and hydrates pages through the batch work-item endpoint. Cursors are opaque and scoped to this adapter.
+
+- Maximum page size: 100
+- WIQL window: 20,000 results
+- Batch hydration: at most 100 items per SDK page
+- State filters use the configured state-name map
+
+<Callout type="info">
+WIQL offset pagination is not a snapshot. For long-running crawls, items changing between pages can move in the order. Use targeted filters and restart a crawl when strict snapshot semantics matter.
+</Callout>
+
+## Native revision protection [#concurrency]
+
+Prepared updates capture Azure's numeric `rev`. Commit first rechecks the normalized revision, then sends a JSON Patch `test` operation against `/rev` in the same mutation request. A stale write fails as `WorkConflictError`.
+
+## Azure DevOps Server and proxies [#server]
+
+`apiBaseUrl` replaces `https://dev.azure.com/{organization}`. Point it at the collection root; the adapter appends the encoded project and API paths.
+
+```ts
+azureDevOps({
+  organization: "collection-label",
+  project: "Platform",
+  apiBaseUrl: "https://devops.example.com/tfs/DefaultCollection",
+  auth: { type: "pat", token },
+})
+```
+
+## Known boundaries [#limitations]
+
+- Boards, iterations, area paths, attachments, relations other than parent, and custom fields are outside the portable v0.x model.
+- Descriptions are preserved as provider HTML; Work SDK does not perform lossy HTML-to-Markdown conversion.
+- Identity writes depend on Azure DevOps resolving the supplied ID, email, or name.
+- Provider rules can modify fields. The adapter verifies important returned fields and fails closed on mismatches.
+
+<DocsNext href="/docs/reference/client" label="Client API reference" description="Review every normalized read, prepare, and commit method." />

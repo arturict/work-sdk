@@ -1,0 +1,93 @@
+---
+title: Normalized errors
+description: Every provider maps transport and domain failures into stable classes. Branch on classes or codes, retain the provider context, and choose retry behavior deliberately.
+seoTitle: Error handling reference
+keywords:
+  - Work SDK errors
+  - API conflict handling
+  - issue tracker rate limits
+---
+
+## Error hierarchy [#hierarchy]
+
+| Class | Code | Typical response |
+| --- | --- | --- |
+| `WorkAuthenticationError` | authentication | Refresh or replace credentials; do not blind-retry. |
+| `WorkAuthorizationError` | authorization | Request scope/permission or remove the action. |
+| `WorkNotFoundError` | not_found | Verify target and visibility. |
+| `WorkRateLimitError` | rate_limit | Retry after the supplied delay with jitter. |
+| `WorkConflictError` | conflict | Re-read, prepare a new plan, request approval again. |
+| `WorkInFlightError` | in_flight | Wait for the current claim owner, then reuse the same key. |
+| `WorkAmbiguousCommitError` | ambiguous | Reconcile provider state; never blind-retry. |
+| `WorkUnsupportedError` | unsupported | Change the tool schema or provider strategy. |
+| `WorkValidationError` | validation | Fix input; retrying unchanged input is wrong. |
+| `WorkError` | provider / network | Inspect cause and provider policy. |
+
+## Shared fields [#fields]
+
+```ts
+error.code          // stable WorkErrorCode
+error.provider      // github | linear | jira | azure-devops | gitlab | custom
+error.status        // provider HTTP status when available
+error.retryAfterMs  // normalized delay for rate limits
+error.details       // parsed provider or validation context
+error.cause         // standard Error cause chain
+```
+
+## Typed handling [#handling]
+
+When class identity is not guaranteed — for example in CommonJS or mixed ESM+CJS graphs where the same class can be loaded twice through different entry points — prefer branching on `error.code` (`WorkErrorCode`) as the discriminator; it is a plain string and stays reliable everywhere. The `instanceof` example below works whenever your app resolves a single copy of `work-sdk`, but keep that caveat in mind.
+
+```ts title="error-policy.ts"
+import {
+  WorkAmbiguousCommitError,
+  WorkAuthenticationError,
+  WorkConflictError,
+  WorkInFlightError,
+  WorkRateLimitError,
+  WorkValidationError,
+} from "work-sdk";
+
+try {
+  return await work.commit(change, { idempotencyKey });
+} catch (error) {
+  if (error instanceof WorkAuthenticationError) {
+    return refreshCredentials();
+  }
+  if (error instanceof WorkRateLimitError) {
+    return retryAfter(error.retryAfterMs);
+  }
+  if (error instanceof WorkConflictError) {
+    return prepareAgainAndRequestApproval();
+  }
+  if (error instanceof WorkInFlightError) {
+    return retryAfterCurrentOwner();
+  }
+  if (error instanceof WorkAmbiguousCommitError) {
+    return reconcileProviderBeforeAnyRetry(error.details);
+  }
+  if (error instanceof WorkValidationError) {
+    return rejectToolInput(error.details);
+  }
+  throw error;
+}
+```
+
+## Retry policy [#retry]
+
+- **Rate limit:** retry after `retryAfterMs`, add jitter, preserve the idempotency key.
+- **In flight:** wait for the claim owner and reuse the same key.
+- **Ambiguous:** do not retry; reconcile the provider and durable record.
+- **Conflict:** never retry the same plan; prepare and approve again.
+- **Validation/unsupported:** do not retry unchanged input.
+- **Authentication:** refresh credentials before another attempt.
+
+<Callout type="info">
+A timeout cannot prove whether the remote provider committed a write. Work SDK records that uncertainty explicitly and blocks another mutation until application reconciliation resolves it.
+</Callout>
+
+## Logging and redaction [#redaction]
+
+Log class, code, provider, status, retry delay, and a correlation ID. Treat `details` and `cause` as potentially sensitive because providers can echo field values or request context. Never log adapter options or authorization headers.
+
+<DocsNext href="/docs/guides/agents" label="Agent integration" description="Turn the client into narrow, policy-aware tools." />

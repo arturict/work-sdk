@@ -1,0 +1,137 @@
+---
+title: Client API reference
+description: The complete normalized client surface. Provider adapters implement transport and mapping; WorkClient adds validation, plans, revisions, warning acknowledgement, and idempotency.
+seoTitle: WorkClient API reference
+keywords:
+  - WorkClient API
+  - Work SDK TypeScript reference
+  - prepared work changes
+---
+
+## `createWorkClient` [#create]
+
+```ts
+function createWorkClient(options: {
+  adapter: WorkAdapter;
+  idempotencyStore?: IdempotencyStore;
+  now?: () => Date;
+}): WorkClient;
+```
+
+`adapter` is required. The default idempotency store is process-local memory. `now` exists for deterministic testing and should normally be omitted.
+
+## Read methods [#reads]
+
+### `get(id, options?)`
+
+```ts
+get(id: string, options?: { signal?: AbortSignal }): Promise<WorkItem>
+```
+
+Returns one normalized item or throws `WorkNotFoundError`. IDs are adapter-native: a GitHub issue number, GitLab issue IID, Linear ID or identifier, Jira key, or Azure work-item ID.
+
+### `list(input?, options?)`
+
+```ts
+list(input?: {
+  project?: string; assignee?: string;
+  state?: WorkItemState | WorkItemState[];
+  labels?: string[]; query?: string;
+  limit?: number; cursor?: string;
+}, options?: { signal?: AbortSignal }): Promise<WorkPage<WorkItem>>
+```
+
+Returns an opaque provider cursor. Never construct or parse cursors; pass `nextCursor` back unchanged.
+
+## Prepare methods [#prepare]
+
+- `prepareCreate(input)` — Plan a new item without writing it.
+- `prepareUpdate(id, input, options?)` — Read current state and calculate a changed-field diff.
+- `prepareComment(id, input, options?)` — Read the target and plan a comment.
+
+Create plans do not have an expected revision. Update and comment plans capture the current item and opaque revision.
+
+## `commit(change, options?)` [#commit]
+
+```ts
+commit<TChange extends PreparedWorkChange>(
+  change: TChange,
+  options?: {
+    idempotencyKey?: string;
+    acceptWarnings?: boolean;
+    signal?: AbortSignal;
+  },
+): Promise<CommitResultFor<TChange>>
+```
+
+Commit validates provider identity, fingerprint integrity, warning acknowledgement, idempotency state, and revision before calling the adapter. The receipt follows the prepared action: create plans return `CreateCommitResult`, updates return `UpdateCommitResult`, and comments return `CommentCommitResult` with a required `comment`.
+
+```ts title="typed-receipt.ts"
+const change = await work.prepareComment("ENG-42", {
+  body: "Validated in staging.",
+});
+
+const receipt = await work.commit(change);
+receipt.action;       // "comment"
+receipt.comment.body; // string, not optional
+```
+
+<Callout type="warn">
+If a mutation starts and the provider outcome becomes uncertain, Work SDK stores an ambiguous state and throws `WorkAmbiguousCommitError`. Reconcile the provider result before another write; never blind-retry that key.
+</Callout>
+
+## Core types [#types]
+
+| Type | Purpose |
+| --- | --- |
+| `WorkItem` | Normalized item plus provider state name, opaque revision, URL, and optional raw payload. |
+| `WorkComment` | Normalized body, author, timestamps, and raw payload. |
+| `PreparedWorkChange` | Serializable, fingerprinted plan for one create, update, or comment. |
+| `CommitResult` | Discriminated union of create, update, and comment receipts with replay flag and commit time. |
+| `CommitResultFor<T>` | Maps a prepared change type to its exact action-specific receipt. |
+| `WorkPage<T>` | Items plus an optional opaque next cursor. |
+| `WorkWarning` | Structured provider limitation or lossy/ambiguous mapping notice. |
+
+## Capabilities [#capabilities]
+
+`work.capabilities` is an immutable snapshot. Inspect it when building tools or UIs so unsupported actions are absent rather than offered and rejected later.
+
+```ts
+if (work.capabilities.parentLinks) {
+  tools.push(updateParentTool(work));
+}
+
+if (!work.capabilities.multipleAssignees) {
+  schema.assigneeIds = z.array(z.string()).max(1);
+}
+
+switch (work.capabilities.concurrency.update) {
+  case "atomic":     // provider rejects races in the write itself
+  case "preflight":  // SDK re-reads, but a small race window remains
+  case "none":
+}
+```
+
+`optimisticConcurrency` remains as a deprecated compatibility Boolean. New code should use the action-specific `concurrency` object.
+
+## `IdempotencyStore` [#store]
+
+```ts
+interface IdempotencyStore {
+  acquire(key: string, intentFingerprint: string): MaybePromise<
+    | { status: "acquired"; leaseId: string }
+    | { status: "completed"; result: CommitResult }
+    | { status: "in-flight" | "ambiguous" | "conflict" }
+  >;
+  complete(key: string, leaseId: string, result: CommitResult): MaybePromise<void>;
+  abandon(key: string, leaseId: string, outcome: "retryable" | "ambiguous"): MaybePromise<void>;
+}
+```
+
+The client prefixes keys with the provider. `acquire` must be atomic across every worker using the store; use a transaction, compare-and-swap, unique insert, or conditional put. A durable `get` followed by `set` is not sufficient.
+
+- **completed** — Replay the stored receipt without a provider call.
+- **in-flight** — Throw `WorkInFlightError`; another worker owns the claim.
+- **ambiguous** — Throw `WorkAmbiguousCommitError`; reconcile before retrying.
+
+<DocsNext href="/docs/reference/errors" label="Errors" description="Handle authentication, rate limits, conflicts, validation, and provider failures." />

@@ -1,0 +1,85 @@
+---
+title: GitHub Issues
+description: Use issue numbers as IDs, keep pull requests out of issue results, and treat open or closed as GitHub's portable state boundary.
+seoTitle: GitHub Issues adapter
+keywords:
+  - GitHub Issues TypeScript SDK
+  - GitHub issue agent
+  - GitHub safe writes
+---
+
+## Configure [#configure]
+
+```ts title="work.ts"
+import { createWorkClient } from "work-sdk";
+import { github } from "work-sdk/github";
+
+export const work = createWorkClient({
+  adapter: github({
+    owner: "octo-org",
+    repo: "product",
+    token: process.env.GITHUB_TOKEN!,
+  }),
+});
+```
+
+The token stays in your process. Requests go to `api.github.com` by default; set `apiBaseUrl` to target a GitHub Enterprise Server instance instead. Inject `fetch` in tests or when your runtime requires a custom transport.
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `token` | No | Bearer token sent with each request. Omit it for unauthenticated reads of public repositories. |
+| `owner` | Yes | Repository owner (user or organization login). |
+| `repo` | Yes | Repository name. |
+| `apiBaseUrl` | No | REST API base URL, default `https://api.github.com`. Point it at your GitHub Enterprise Server API endpoint to use GHES. |
+| `fetch` | No | Custom fetch implementation, default `globalThis.fetch`. Useful for tests, proxies, or custom transports. |
+
+## Permissions [#permissions]
+
+Fine-grained personal access tokens need repository access plus read and write permission for Issues. GitHub App installation tokens are preferable for multi-tenant applications because each installation has an explicit repository boundary.
+
+<Callout type="info">
+Never expose a GitHub token to a browser or to an untrusted model prompt. Keep the Work SDK client in a server process or isolated tool runtime.
+</Callout>
+
+## Identifiers [#identifiers]
+
+- **`id`** — The decimal issue number as a string, for example `"481"`.
+- **`identifier`** — A readable repository-qualified value such as `octo-org/product#481`.
+- **`revision`** — A deterministic readback fingerprint used for preflight conflict detection.
+
+## Field mapping [#mapping]
+
+| Work SDK | GitHub | Notes |
+| --- | --- | --- |
+| state | `open` / `closed` | Completed maps to closed; custom workflow states are not available. |
+| assigneeIds | logins | Multiple assignees are supported when the repository allows them. |
+| labels | label names | Label names are passed through as-is; GitHub may create labels that do not exist yet. Labels dropped because the token lacks permission fail readback verification. |
+| kind | issue type | GitHub issue types map to `bug`, `task`, `story`, and `epic` on read (anything else is `issue`), and `kind` sets the issue type on create. Pull requests are excluded from list results. |
+
+## Safe write [#safe-write]
+
+```ts title="close-issue.ts"
+const change = await work.prepareUpdate("481", {
+  state: "completed",
+  labels: ["ready-to-ship"],
+});
+
+for (const warning of change.warnings) {
+  console.warn(warning.code, warning.message);
+}
+
+const result = await work.commit(change, {
+  idempotencyKey: "release:product#481",
+  acceptWarnings: change.warnings.length > 0,
+});
+```
+
+The returned receipt is narrowed to `UpdateCommitResult`. GitHub cannot atomically test an issue revision during the write, so update concurrency is reported as `preflight`, not `atomic`.
+
+## Limits and escape hatches [#limits]
+
+- GitHub Projects fields are outside the portable issue contract.
+- Organization-specific metadata remains available through `raw` for reads.
+- Repository rules and token permissions can reject an action even when the adapter capability is true.
+
+<DocsNext href="/docs/providers/gitlab" label="GitLab" description="Configure GitLab.com or Self-Managed with guarded labels and issue-type mappings." />

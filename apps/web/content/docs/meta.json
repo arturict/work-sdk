@@ -1,0 +1,24 @@
+{
+  "root": true,
+  "pages": [
+    "---Start---",
+    "index",
+    "getting-started",
+    "examples",
+    "---Concepts---",
+    "concepts/safe-writes",
+    "providers/index",
+    "---Providers---",
+    "providers/github",
+    "providers/gitlab",
+    "providers/linear",
+    "providers/jira",
+    "providers/azure-devops",
+    "---Reference---",
+    "reference/client",
+    "reference/errors",
+    "---Guides---",
+    "guides/agents",
+    "guides/testing"
+  ]
+}

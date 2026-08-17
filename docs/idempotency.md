@@ -1,6 +1,6 @@
 # Atomic idempotency stores
 
-Work SDK v0.4 uses an atomic claim protocol. A durable store is not safe merely
+Work SDK (v0.4 and later) uses an atomic claim protocol. A durable store is not safe merely
 because its values survive restarts: two workers must not both observe a
 missing key and then write to the provider.
 

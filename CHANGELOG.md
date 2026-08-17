@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — 2026-07-24
+
+- Return action-specific commit receipts: `commit()` narrows its result type to
+  the prepared action (`CommitResultFor`), and replay receipts are validated
+  against the prepared action before being returned.
+- Added compile-time API contract tests and a release gate that runs
+  package-lint and tarball smoke checks before publishing.
+
 ## 0.4.0 — 2026-07-24
 
 - Replaced the distributed-idempotency `get`/`set` recipe with an atomic
@@ -23,6 +31,12 @@
 - Reworked the safety, client, error, Azure, testing, machine-readable, and
   landing-page documentation to describe real guarantees instead of
   overpromising exactly-once behavior.
+
+## 0.3.1 — 2026-07-24
+
+- Improved package discovery and evaluation with issue-tracker search metadata,
+  a credential-free safe-write example, a provider comparison, and clearer
+  guidance on when to use Work SDK.
 
 ## 0.3.0 — 2026-07-24
 
