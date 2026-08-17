@@ -1,0 +1,70 @@
+---
+title: Work SDK documentation
+description: One typed interface for reading and safely writing work across GitHub Issues, GitLab, Linear, Jira Cloud, and Azure DevOps. Start with a provider, then adopt the prepare → inspect → commit protocol where side effects matter.
+seoTitle: Documentation
+keywords:
+  - Work SDK documentation
+  - TypeScript issue tracker SDK
+  - AI agent work item API
+---
+
+<Callout type="info">Work SDK is a local TypeScript library. Credentials stay in your process and requests go directly to the configured tracker.</Callout>
+
+## Choose a path [#choose-a-path]
+
+1. **[Build your first integration](/docs/getting-started)** — Install the package, configure a provider, read an item, and commit a safe update.
+2. **[Add Azure DevOps](/docs/providers/azure-devops)** — Configure Entra or PAT auth, custom processes, WIQL search, priorities, and parent links.
+3. **[Give it to an agent](/docs/guides/agents)** — Design narrow tools, approval gates, stable idempotency keys, and conflict recovery.
+4. **[Look up the API](/docs/reference/client)** — Review every client method, normalized type, capability, and commit receipt.
+5. **[Run a real example app](/docs/examples)** — Try an approval CLI or signed webhook bot locally with safe fake credentials.
+
+## Your first safe write [#first-write]
+
+Provider adapters are separate subpath exports. Your application gets one normalized client without pulling unused provider code into the bundle.
+
+```bash title="Terminal"
+npm install work-sdk
+```
+
+```ts title="safe-update.ts"
+import { createWorkClient } from "work-sdk";
+import { github } from "work-sdk/github";
+
+const work = createWorkClient({
+  adapter: github({
+    owner: "acme",
+    repo: "api",
+    token: process.env.GITHUB_TOKEN!,
+  }),
+});
+
+const change = await work.prepareUpdate("481", {
+  state: "closed",
+});
+
+console.log(change.changes, change.warnings);
+
+const result = await work.commit(change, {
+  idempotencyKey: "merge:acme/api#481",
+});
+```
+
+`prepareUpdate` reads the current item and creates an integrity-protected plan. No provider mutation occurs until `commit`.
+
+## The mental model [#mental-model]
+
+1. **Prepare intent.** Validate input, read current state, calculate an exact diff, and capture the expected revision.
+2. **Inspect consequences.** Evaluate field changes and provider warnings in code, an approval UI, or an agent policy.
+3. **Commit once.** Verify the plan fingerprint and revision, then write with a stable idempotency key.
+
+## Provider support [#support]
+
+| Provider | Import | Protocol | Distinctive behavior |
+| --- | --- | --- | --- |
+| GitHub Issues | `work-sdk/github` | REST | Open/closed state reasons, multiple assignees |
+| GitLab | `work-sdk/gitlab` | REST v4 | Self-Managed, guarded labels, explicit type maps |
+| Linear | `work-sdk/linear` | GraphQL | Cursor pagination, team workflow resolution |
+| Jira Cloud | `work-sdk/jira` | REST v3 | ADF rich text, workflow transitions |
+| Azure DevOps | `work-sdk/azure-devops` | REST + WIQL | JSON Patch revisions, custom processes, parent relations |
+
+<DocsNext href="/docs/getting-started" label="Getting started" description="Install Work SDK and complete the full read-to-write flow." />

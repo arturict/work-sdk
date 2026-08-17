@@ -1,0 +1,70 @@
+---
+title: Linear
+description: Resolve team-specific workflows before mutation and keep Linear's native priorities, cursor pagination, and parent links behind the normalized contract.
+seoTitle: Linear adapter
+keywords:
+  - Linear TypeScript SDK
+  - Linear issue agent
+  - Linear API adapter
+---
+
+## Configure [#configure]
+
+```ts title="work.ts"
+import { createWorkClient } from "work-sdk";
+import { linear } from "work-sdk/linear";
+
+export const work = createWorkClient({
+  adapter: linear({
+    apiKey: process.env.LINEAR_API_KEY!,
+    teamId: "team_01JEXAMPLE",
+  }),
+});
+```
+
+The adapter accepts five options: `apiKey` (personal API key for a single workspace), `accessToken` (OAuth access token for an installed application, an alternative to `apiKey`), `teamId`, `endpoint` (custom GraphQL endpoint), and `fetch` (custom fetch implementation). `teamId` provides the default team for creates and state resolution.
+
+## Teams and identifiers [#teams]
+
+`get` accepts a Linear UUID or readable identifier such as `ENG-123`. Creates require the `teamId` adapter option: without it, `capabilities.create` is `false` and `prepareCreate` fails with `WorkUnsupportedError`. `input.project` maps to `projectId` — a Linear project assignment — and never substitutes for a team. List cursors are opaque GraphQL cursors and must be passed back unchanged.
+
+<Callout type="info">
+State and label names are scoped by workspace and team. Resolve them through the adapter rather than hard-coding internal Linear IDs in an agent prompt.
+</Callout>
+
+## States and priorities [#states]
+
+| Work SDK | Linear |
+| --- | --- |
+| backlog | Workflow state type `backlog` |
+| unstarted | Workflow state type `unstarted` |
+| started | Workflow state type `started` |
+| completed | Workflow state type `completed` |
+| canceled | Workflow state type `canceled` |
+| urgent / high / medium / low / none | Native priority 1–4 or 0 |
+
+The normalized `state` is portable. `stateName` preserves the workspace's exact display name, such as "In review".
+
+## Safe write [#safe-write]
+
+```ts title="complete-linear-issue.ts"
+const change = await work.prepareUpdate("ENG-123", {
+  state: "Done",
+  priority: "high",
+  parentId: "ENG-100",
+});
+
+const receipt = await work.commit(change, {
+  idempotencyKey: "agent-run:42:ENG-123",
+});
+```
+
+Prepared changes include the current Linear issue and revision fingerprint. A final read blocks a stale plan before mutation; Linear does not expose an atomic compare-and-set for this adapter, so the guarantee remains preflight.
+
+## Limits [#limits]
+
+- Linear supports one assignee in the portable contract.
+- Custom fields and project milestones remain provider-specific.
+- Workspace permissions and team membership still apply to every request.
+
+<DocsNext href="/docs/providers/jira" label="Jira Cloud" description="Handle transition-driven states and Atlassian Document Format." />

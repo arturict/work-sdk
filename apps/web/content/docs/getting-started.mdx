@@ -1,0 +1,95 @@
+---
+title: Build your first integration
+description: Go from package installation to an inspectable, idempotency-coordinated provider write. This guide uses Linear, but the client lifecycle is identical for every adapter.
+seoTitle: Getting started with Work SDK
+keywords:
+  - install Work SDK
+  - TypeScript SDK quickstart
+  - work-sdk npm
+---
+
+## Requirements [#requirements]
+
+- Node.js 20 or newer
+- TypeScript 5+ recommended
+- Server-side credentials for at least one provider
+
+<Callout type="warn">
+Do not instantiate authenticated adapters in browser bundles. Provider tokens must never enter client-side code, model prompts, prepared plans, or logs.
+</Callout>
+
+## Install [#install]
+
+```bash title="npm"
+npm install work-sdk
+```
+
+The package has zero runtime dependencies and publishes ESM, CommonJS, and declarations for every subpath.
+
+## Configure a client [#configure]
+
+```ts title="work.ts"
+import { createWorkClient } from "work-sdk";
+import { linear } from "work-sdk/linear";
+
+export const work = createWorkClient({
+  adapter: linear({
+    apiKey: process.env.LINEAR_API_KEY!,
+    teamId: process.env.LINEAR_TEAM_ID!,
+  }),
+});
+```
+
+Create one client per provider configuration. The adapter owns credentials and provider-specific routing; the client owns safe-write semantics.
+
+## Read normalized work [#read]
+
+```ts title="read.ts"
+const item = await work.get("ENG-123");
+
+console.log({
+  id: item.identifier,
+  state: item.state,       // normalized
+  stateName: item.stateName, // provider-native
+  revision: item.revision, // opaque: never parse it
+});
+
+const page = await work.list({
+  state: ["unstarted", "started"],
+  labels: ["reliability"],
+  limit: 25,
+});
+```
+
+Use normalized fields for portable behavior and `stateName` or `raw` when a provider-native detail matters.
+
+## Write safely [#write]
+
+```ts title="comment.ts"
+const change = await work.prepareComment("ENG-123", {
+  body: "Implemented and verified in staging.",
+});
+
+// Persist or render this plan before committing it.
+console.log(change.summary);
+console.table(change.changes);
+
+const receipt = await work.commit(change, {
+  idempotencyKey: "deploy:2026-07-12:ENG-123",
+});
+
+console.log(receipt.replayed);
+```
+
+A repeated successful idempotency key returns the stored receipt with `replayed: true` instead of performing the mutation again.
+
+## Production checklist [#production]
+
+- Use a durable `IdempotencyStore` with an atomic claim across processes.
+- Inspect every warning before setting `acceptWarnings: true`.
+- On `WorkConflictError`, discard the plan and prepare again.
+- On `WorkAmbiguousCommitError`, reconcile provider state before another write.
+- Pass `AbortSignal` from request or job cancellation.
+- Check `work.capabilities` before exposing optional actions.
+
+<DocsNext href="/docs/concepts/safe-writes" label="Safe writes" description="Understand integrity, revisions, warnings, and idempotency in depth." />

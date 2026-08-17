@@ -1,0 +1,94 @@
+---
+title: Example applications
+description: Complete Node applications that run without credentials against an in-memory provider. Copy the supplied fake environment file when you are ready to connect a real GitHub, GitLab, Linear, Jira, or Azure DevOps project.
+seoTitle: TypeScript example apps
+keywords:
+  - Work SDK examples
+  - TypeScript webhook bot
+  - AI agent approval CLI
+---
+
+<Callout type="info">Every committed token, account, domain, project, and webhook secret in these examples is intentionally fake. Both apps default to `WORK_PROVIDER=memory` and make no external network request.</Callout>
+
+## Safe fake credentials [#safety]
+
+Each app includes a tracked `.env.example`. Copy it to the ignored `.env` file, select one provider, and replace only that provider's values. Fake values consistently contain `example` or use reserved example domains.
+
+```bash title=".env.example excerpt"
+WORK_PROVIDER=azure-devops
+WORK_ITEM_ID=42
+WORK_TARGET_STATE=Ready for validation
+
+# Fake values — replace only in your private .env
+AZURE_DEVOPS_ORGANIZATION=acme-example
+AZURE_DEVOPS_PROJECT=Platform
+AZURE_DEVOPS_AUTH=entra
+AZURE_DEVOPS_TOKEN=azure_example_not_a_real_token
+```
+
+Example 01
+
+## Interactive approval CLI [#approval-cli]
+
+A terminal application that prepares an update, prints the exact diff and warnings, asks for explicit approval, and commits the reviewed plan with a stable idempotency key. Typing anything except `yes` exits without a provider mutation.
+
+Prepare → Print diff → Type yes → Commit
+
+### Run the local demo
+
+```bash title="Terminal"
+pnpm --filter @work-sdk/example-approval-cli start
+```
+
+### Connect a provider
+
+```bash title="Terminal"
+cd examples/approval-cli
+cp .env.example .env
+# Edit .env locally
+pnpm start:env
+```
+
+[Browse the Approval CLI source →](https://github.com/arturict/work-sdk/tree/main/examples/approval-cli)
+
+Example 02
+
+## Idempotent deployment webhook bot [#webhook-bot]
+
+A small HTTP service built with Node core APIs. It verifies an HMAC-SHA256 signature, validates a deployment event, prepares a Markdown comment, and uses the event ID as a business-stable idempotency key. Repeated deliveries return `replayed: true`.
+
+```json title="deployment.succeeded.json"
+{
+  "id": "deploy_example_20260712_001",
+  "status": "succeeded",
+  "environment": "staging",
+  "commit": "4cae7d53fb5d2da17ec7a4f342e28c31e95fdcb2",
+  "url": "https://deployments.example.com/runs/deploy_example_20260712_001"
+}
+```
+
+### Run both sides locally
+
+```bash title="Terminal"
+# Terminal 1
+pnpm --filter @work-sdk/example-webhook-bot start
+
+# Terminal 2
+pnpm --filter @work-sdk/example-webhook-bot send-demo
+```
+
+The app also exposes `GET /health`, rejects invalid signatures before a provider call, limits request bodies to 64 KiB, and returns small JSON receipts.
+
+[Browse the Webhook Bot source →](https://github.com/arturict/work-sdk/tree/main/examples/webhook-bot)
+
+## Before production [#production]
+
+| Demo default | Production replacement |
+| --- | --- |
+| Memory adapter | Authenticated GitHub, GitLab, Linear, Jira, or Azure DevOps adapter |
+| Memory idempotency store | Transactional database or conditional durable store with atomic claims |
+| Local fake webhook secret | Secret-manager value with rotation |
+| Direct HTTP processing | Queue, retry policy, reconciliation, and dead-letter handling |
+| Console output | Structured redacted logs and audit receipts |
+
+<DocsNext href="/docs/guides/agents" label="Agent integration" description="Turn the same prepare and commit boundaries into safe agent tools." />

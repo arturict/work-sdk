@@ -1,0 +1,81 @@
+---
+title: Prepare. Inspect. Commit.
+description: Work SDK turns a provider mutation into a reviewable value before it becomes a side effect. Integrity, optimistic concurrency, and idempotency each protect a different failure boundary.
+seoTitle: Safe writes for AI agents
+keywords:
+  - safe AI agent writes
+  - idempotent API writes
+  - optimistic concurrency
+---
+
+## Why a protocol? [#why]
+
+A direct API call combines intent, provider translation, authorization, and an irreversible effect. Agents are especially vulnerable to retry ambiguity and stale context. Work SDK separates decision time from mutation time.
+
+Normalized intent → Prepared plan → Policy / approval → Provider write
+
+## Prepared plan anatomy [#anatomy]
+
+```ts title="simplified type"
+type PreparedWorkChange =
+  | { action: "create"; input: CreateWorkItemInput; targetId?: never }
+  | { action: "update"; input: UpdateWorkItemInput;
+      targetId: string; current: WorkItem; expectedRevision: string }
+  | { action: "comment"; input: AddCommentInput;
+      targetId: string; current: WorkItem; expectedRevision: string };
+
+// Every variant also contains provider, changes, warnings, summary,
+// preparedAt, id, and an integrity fingerprint.
+```
+
+Plans are serializable and contain no credentials. The `current` snapshot explains the diff; `expectedRevision` makes the later commit conditional.
+
+## Integrity fingerprint [#integrity]
+
+The fingerprint covers every signed plan field. If application code or an agent mutates the reviewed input, changes, warnings, target, or revision, `commit` rejects the plan before any provider request.
+
+<Callout type="info">
+The fingerprint detects accidental mutation. It is not a user-authentication signature and should not be treated as one across untrusted boundaries.
+</Callout>
+
+## Concurrency guarantees [#concurrency]
+
+Update and comment plans capture the item's opaque revision. Commit re-reads the item and fails closed if it changed. `capabilities.concurrency` reports whether the final provider mutation is `atomic`, uses a best-effort `preflight`, or has no protection. Azure DevOps updates use an atomic JSON Patch `test /rev`; GitHub, GitLab, Linear, and Jira retain a small read-to-write race window.
+
+```ts title="conflict-recovery.ts"
+try {
+  await work.commit(change, { idempotencyKey });
+} catch (error) {
+  if (error instanceof WorkConflictError) {
+    // Never patch the old plan or force the write.
+    const replacement = await work.prepareUpdate(change.targetId!, change.input);
+    return requestApproval(replacement);
+  }
+  throw error;
+}
+```
+
+Every `WorkError` also carries a stable machine-readable `code` (`WorkErrorCode`), such as `"conflict"` for `WorkConflictError`. In CommonJS or mixed ESM/CJS module graphs, where `instanceof` can fail across entry points, `error.code` is the reliable discriminator.
+
+## Idempotency [#idempotency]
+
+The default memory store atomically coordinates retries inside one process. Serverless, clustered, and job systems must supply a durable store with an atomic claim. Keys should identify the business event, for example `github:webhook:delivery-123:comment`, not the attempt. Work SDK binds each key to the normalized provider, action, target, and input.
+
+- **Same key + completed intent** — Return the stored receipt with `replayed: true`.
+- **Same key + active intent** — Fail with `WorkInFlightError`; do not start a second write.
+- **Uncertain provider outcome** — Fail with `WorkAmbiguousCommitError` and require reconciliation.
+- **Same key + different intent** — Fail with `WorkConflictError` before a provider mutation.
+
+<Callout type="warn">
+Durability alone is insufficient. A store implemented as separate `get` and `set` operations can still duplicate writes across workers.
+</Callout>
+
+## Warnings and approval [#warnings]
+
+Warnings describe lossy mappings, ambiguous values, unsupported fields, or provider limitations. Commit requires `acceptWarnings: true` when warnings exist, forcing the caller to acknowledge them explicitly.
+
+<Callout type="warn">
+Acceptance means "the caller reviewed this risk." It does not make an impossible provider operation possible; an adapter can still reject invalid or unsupported input.
+</Callout>
+
+<DocsNext href="/docs/providers" label="Provider model" description="See where the normalized contract ends and provider semantics begin." />

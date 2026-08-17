@@ -1,6 +1,6 @@
-import { llmsIndex } from "@/lib/machine-content";
+import { llmsIndex } from "@/lib/llms";
 import { textResponse } from "@/lib/responses";
 
 export function GET() {
-  return textResponse(llmsIndex);
+  return textResponse(llmsIndex());
 }

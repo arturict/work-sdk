@@ -79,7 +79,10 @@ test("agent discovery describes every provider and machine-readable resource", a
   assert.match(agentCard, /llms_full/);
   assert.match(agentCard, /safe_write_protocol/);
   assert.match(machineContent, /Provider comparison/);
-  assert.match(machineContent, /`\$\{llmsIndex\}/);
+  const llms = await read("lib/llms.ts");
+  assert.match(llms, /llmsIndex/);
+  assert.match(llms, /getText\("processed"\)/);
+  assert.match(llms, /source/);
 });
 
 test("interactive controls expose accessible state", async () => {
@@ -123,51 +126,41 @@ test("company marks come from locally cached SVGL assets", async () => {
   assert.match(sources, /SVGL registry/);
 });
 
-test("documentation has guided learning, provider, reference, and testing routes", async () => {
-  const routes = [
-    "app/docs/getting-started/page.tsx",
-    "app/docs/examples/page.tsx",
-    "app/docs/concepts/safe-writes/page.tsx",
-    "app/docs/providers/page.tsx",
-    "app/docs/providers/github/page.tsx",
-    "app/docs/providers/gitlab/page.tsx",
-    "app/docs/providers/linear/page.tsx",
-    "app/docs/providers/jira/page.tsx",
-    "app/docs/providers/azure-devops/page.tsx",
-    "app/docs/reference/client/page.tsx",
-    "app/docs/reference/errors/page.tsx",
-    "app/docs/guides/agents/page.tsx",
-    "app/docs/guides/testing/page.tsx",
+test("documentation content is MDX-sourced with generated navigation, search, and sitemap", async () => {
+  const slugs = [
+    "index",
+    "getting-started",
+    "examples",
+    "concepts/safe-writes",
+    "providers/index",
+    "providers/github",
+    "providers/gitlab",
+    "providers/linear",
+    "providers/jira",
+    "providers/azure-devops",
+    "reference/client",
+    "reference/errors",
+    "guides/agents",
+    "guides/testing",
   ];
-  await Promise.all(routes.map(async (route) => {
-    const page = await read(route);
-    assert.match(page, /DocsShell/, route);
-    assert.match(page, /createPageMetadata/, route);
+  await Promise.all(slugs.map(async (slug) => {
+    const page = await read(`content/docs/${slug}.mdx`);
+    assert.match(page, /^---\ntitle: .+/, slug);
+    assert.match(page, /\ndescription: .+/, slug);
   }));
-  assert.match(await read("app/docs/page.tsx"), /createPageMetadata/);
+  const meta = JSON.parse(await read("content/docs/meta.json"));
+  const navEntries = meta.pages.filter((entry) => !entry.startsWith("---"));
+  assert.deepEqual([...navEntries].sort(), [...slugs].sort());
   const layout = await read("app/docs/layout.tsx");
-  const docs = await read("lib/docs.ts");
-  const shell = await read("components/docs-shell.tsx");
-  const search = await read("components/docs-search.tsx");
   assert.match(layout, /fumadocs-ui\/layouts\/docs/);
-  assert.match(layout, /RootProvider/);
-  assert.match(docs, /satisfies PageTree\.Root/);
-  assert.match(docs, /\/docs\/providers\/github/);
-  assert.match(docs, /\/docs\/providers\/linear/);
-  assert.match(docs, /\/docs\/providers\/jira/);
-  assert.match(shell, /DocsPage/);
-  assert.match(shell, /FumadocsCodeBlock/);
-  assert.match(shell, /Callout/);
-  assert.match(search, /DocsSearchDialog/);
-  assert.match(search, /role="dialog"/);
+  assert.match(layout, /source\.pageTree/);
+  assert.match(await read("app/layout.tsx"), /RootProvider/);
+  const docPage = await read("app/docs/[[...slug]]/page.tsx");
+  assert.match(docPage, /generateStaticParams/);
+  assert.match(docPage, /createPageMetadata/);
+  assert.match(await read("app/api/search/route.ts"), /createFromSource/);
   const sitemap = await read("app/sitemap.ts");
-  assert.match(sitemap, /providers\/github/);
-  assert.match(sitemap, /providers\/linear/);
-  assert.match(sitemap, /providers\/jira/);
-  assert.match(sitemap, /providers\/azure-devops/);
-  assert.match(sitemap, /providers\/gitlab/);
-  assert.match(sitemap, /guides\/testing/);
-  assert.match(sitemap, /docs\/examples/);
+  assert.match(sitemap, /source[\s\S]*getPages/);
 });
 
 test("engineering guide is crawlable, substantive, and linked from the homepage", async () => {

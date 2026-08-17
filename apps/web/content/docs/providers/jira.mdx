@@ -1,0 +1,91 @@
+---
+title: Jira Cloud
+description: Jira status updates are workflow transitions, descriptions use Atlassian Document Format, and project configuration decides which writes are valid.
+seoTitle: Jira Cloud adapter
+keywords:
+  - Jira Cloud TypeScript SDK
+  - Jira agent tools
+  - Jira transition API
+---
+
+## Configure [#configure]
+
+```ts title="work.ts"
+import { createWorkClient } from "work-sdk";
+import { jira } from "work-sdk/jira";
+
+export const work = createWorkClient({
+  adapter: jira({
+    baseUrl: "https://example.atlassian.net",
+    email: "agent@example.com",
+    apiToken: process.env.JIRA_API_TOKEN!,
+    projectKey: "ENG",
+  }),
+});
+```
+
+`baseUrl` is your Jira Cloud tenant root without a trailing REST path. `projectKey` supplies the default project for creates and search.
+
+| Option | Type | Behavior |
+| --- | --- | --- |
+| `baseUrl` | `string` | Jira Cloud tenant root without a trailing REST path. |
+| `projectKey` | `string` | Default project for creates and search. |
+| `email` | `string` | Atlassian account email for basic authentication (paired with `apiToken`). |
+| `apiToken` | `string` | Atlassian API token for basic authentication (paired with `email`). |
+| `accessToken` | `string` | OAuth 2.0 bearer token. Mutually exclusive with `email`/`apiToken`. |
+| `issueType` | `string` | Default issue type for creates when `kind` does not map to one. Defaults to `"Task"`. |
+| `priorityNameByCanonical` | `Partial<Record<"urgent" \| "high" \| "medium" \| "low", string>>` | Maps normalized priorities to tenant-specific or localized Jira priority names. |
+
+## Authentication [#auth]
+
+Basic authentication uses the Atlassian account email and an API token, not the account password. OAuth 2.0 applications can provide a bearer token through `accessToken`; configure either `accessToken` or `email`/`apiToken`, not both.
+
+<Callout type="info">
+Jira API tokens often span more projects than an individual tool needs. Run the client in a server boundary and use a dedicated account with the narrowest practical project permissions.
+</Callout>
+
+## Workflow transitions [#transitions]
+
+Jira does not update `status` like an ordinary field. The adapter reads available transitions for the issue, resolves the requested normalized or display state, and then invokes the matching transition ID.
+
+Requested **completed** → Available transitions → **Done** / transition 31
+
+If no unambiguous transition exists, preparation or commit fails instead of choosing a similarly named state.
+
+## Content and fields [#content]
+
+| Work SDK | Jira Cloud | Behavior |
+| --- | --- | --- |
+| description | ADF document | Plain text is converted conservatively. |
+| comment | ADF document | The normalized body remains plain text. |
+| priority | priority name / ID | Resolved against tenant metadata; override names with `priorityNameByCanonical`. |
+| parentId | parent issue key | Supported when the issue type allows it. |
+| kind | issue type | Maps task, bug, story, epic, and subtask; other creates use the configured `issueType`. |
+
+## Safe write [#safe-write]
+
+```ts title="transition-jira.ts"
+const change = await work.prepareUpdate("ENG-42", {
+  state: "completed",
+  description: "Validated by the release agent.",
+});
+
+if (change.warnings.length) {
+  await requestHumanApproval(change);
+}
+
+const receipt = await work.commit(change, {
+  idempotencyKey: "deploy:2026-07-24:ENG-42",
+  acceptWarnings: true,
+});
+```
+
+The receipt is an `UpdateCommitResult`. The adapter re-reads the issue revision before writing, but Jira's multi-request transition flow still has a race window and is reported as preflight concurrency.
+
+## Limits [#limits]
+
+- Required custom fields cannot be inferred across tenants.
+- Rich ADF structures beyond conservative text conversion remain provider-specific.
+- Workflow validators, conditions, and automation can reject an otherwise valid transition.
+
+<DocsNext href="/docs/providers/azure-devops" label="Azure DevOps" description="Use WIQL, JSON Patch, custom process mappings, and native revision tests." />

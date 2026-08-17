@@ -1,24 +1,13 @@
 import type { MetadataRoute } from "next";
 
 import { site } from "@/lib/site";
+import { source } from "@/lib/source";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const docs = [
-    "/docs",
-    "/docs/getting-started",
-    "/docs/examples",
-    "/docs/concepts/safe-writes",
-    "/docs/providers",
-    "/docs/providers/github",
-    "/docs/providers/gitlab",
-    "/docs/providers/linear",
-    "/docs/providers/jira",
-    "/docs/providers/azure-devops",
-    "/docs/reference/client",
-    "/docs/reference/errors",
-    "/docs/guides/agents",
-    "/docs/guides/testing",
-  ];
+  const docs = source
+    .getPages()
+    .map((page) => page.url)
+    .sort((a, b) => (a === "/docs" ? -1 : b === "/docs" ? 1 : a.localeCompare(b)));
   return [
     { url: site.url, changeFrequency: "weekly", priority: 1 },
     { url: `${site.url}/guides/agent-safe-work-tracker-writes`, changeFrequency: "monthly", priority: 0.9 },

@@ -1,0 +1,78 @@
+---
+title: Give agents narrow, safe tools
+description: Separate planning from authority. Let an agent propose normalized intent, but keep reviewed plans, approval records, idempotency keys, and provider credentials in trusted application code.
+seoTitle: AI agent integration guide
+keywords:
+  - AI agent tools
+  - coding agent SDK
+  - human approval workflow
+---
+
+## Separate prepare and commit [#boundaries]
+
+A single "update ticket" tool hides the most important boundary. Prefer a proposal tool that returns a plan and a commit tool that accepts only a trusted approval reference.
+
+```ts title="agent-tools.ts"
+const prepareUpdateTool = {
+  name: "prepare_work_item_update",
+  description: "Prepare, but do not commit, a work-item update.",
+  inputSchema: updateSchemaFor(work.capabilities),
+  execute: ({ id, update }, { signal }) =>
+    work.prepareUpdate(id, update, { signal }),
+};
+
+const commitTool = {
+  name: "commit_approved_work_change",
+  description: "Commit an already approved prepared change.",
+  inputSchema: approvedChangeReferenceSchema,
+  execute: async ({ approvalId }, { signal }) => {
+    const { change, idempotencyKey } = await approvals.consume(approvalId);
+    return work.commit(change, { idempotencyKey, acceptWarnings: true, signal });
+  },
+};
+```
+
+<Callout type="warn">
+Do not let the model manufacture `acceptWarnings`, approval IDs, stored plans, or idempotency keys. Resolve those values inside trusted code.
+</Callout>
+
+## Derive schemas from capabilities [#schemas]
+
+Remove unsupported fields at tool-construction time. Limit single-assignee providers to one entry and hide comments, parents, priorities, or states when the configured adapter cannot represent them.
+
+## Approval records [#approval]
+
+Store the entire prepared change, the displayed summary/diff, actor, policy result, timestamp, and approval scope. Commit the exact stored plan; never rebuild it from a model-produced summary.
+
+**Approval binds to fingerprint** — If any signed plan field changes, commit fails and approval must restart.
+
+## Business-derived keys [#idempotency]
+
+```ts
+const idempotencyKey = [
+  "agent",
+  run.triggerId,
+  change.action,
+  change.provider,
+  change.targetId ?? "new",
+].join(":");
+```
+
+Use stable trigger identity. Random attempt IDs defeat replay protection; vague keys can incorrectly deduplicate distinct effects.
+
+## Conflict recovery [#conflicts]
+
+When another actor changes the item after inspection, surface the conflict to the agent or user, prepare again from current state, show the new diff, and obtain new approval. Never mutate `expectedRevision` or force the stale write.
+
+## Operational rules [#rules]
+
+1. Credentials never enter prompts, tool results, or prepared-plan storage.
+2. Read tools may be broader than write tools.
+3. Prepare before any externally visible mutation.
+4. Inspect all warnings and exact field changes.
+5. Require policy or human approval where impact warrants it.
+6. Commit stored plans with durable idempotency keys.
+7. Redact provider details before returning errors to a model.
+8. Audit receipts, not secrets or raw authorization data.
+
+<DocsNext href="/docs/guides/testing" label="Testing" description="Test agent workflows and adapters without provider network calls." />

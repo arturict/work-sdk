@@ -1,0 +1,145 @@
+---
+title: Fast, deterministic tests
+description: Use the memory adapter for application and agent behavior, inject fetch for provider protocol tests, and run the shared contract against custom adapters. No live credentials are required.
+seoTitle: Testing Work SDK integrations
+keywords:
+  - Work SDK testing
+  - issue tracker adapter tests
+  - AI agent integration tests
+---
+
+## Memory adapter [#memory]
+
+```ts title="test-setup.ts"
+import { createWorkClient } from "work-sdk";
+import { memoryWorkAdapter, workItemFixture } from "work-sdk/testing";
+
+const adapter = memoryWorkAdapter({
+  items: [workItemFixture({
+    id: "42",
+    identifier: "TEST-42",
+    title: "Initial title",
+  })],
+  now: () => new Date("2026-01-01T00:00:00Z"),
+});
+
+const work = createWorkClient({
+  adapter,
+  now: () => new Date("2026-01-01T00:00:00Z"),
+});
+```
+
+The memory adapter implements the full contract, clones returned values, advances revisions, supports capability overrides, and honors abort signals.
+
+## Fixtures and capability overrides [#fixtures]
+
+`work-sdk/testing` also exports `workCommentFixture` and `fullWorkCapabilities` alongside `workItemFixture`. Both fixtures return a complete, valid object and deep-clone any overrides you pass:
+
+```ts title="fixtures.ts"
+import {
+  fullWorkCapabilities,
+  memoryWorkAdapter,
+  workCommentFixture,
+  workItemFixture,
+} from "work-sdk/testing";
+
+const item = workItemFixture({ id: "7", state: "started", stateName: "In Progress" });
+const comment = workCommentFixture({ body: "Deploy scheduled." });
+
+// Every capability enabled; concurrency is { update: "atomic", comment: "preflight" }.
+console.log(fullWorkCapabilities.optimisticConcurrency); // true
+
+// Override capabilities to test unsupported-operation handling.
+const readOnly = memoryWorkAdapter({
+  capabilities: { create: false, update: false, comments: false },
+});
+```
+
+`fullWorkCapabilities` is a frozen `WorkCapabilities` value with every feature enabled. `memoryWorkAdapter` merges its `capabilities` option over `fullWorkCapabilities`, so you only specify the flags you want to change. Operations disabled this way throw `WorkUnsupportedError`, letting you assert how your application and agent code degrade per provider.
+
+## Inspecting recorded calls [#calls]
+
+The adapter returned by `memoryWorkAdapter` is a `MemoryWorkAdapter`, which extends `WorkAdapter` with a recording and inspection API:
+
+- `calls` — an array of `MemoryAdapterCall` entries, one per adapter invocation in order.
+- `items` — a `ReadonlyMap<string, WorkItem>` snapshot of stored items (values are clones).
+- `comments` — a `ReadonlyMap<string, readonly WorkComment[]>` snapshot of stored comments.
+- `seed(items)` — insert additional items into the store.
+- `clearCalls()` — reset the call log while keeping items and comments.
+- `clear()` — reset items, comments, the call log, and internal id counters.
+
+Each `MemoryAdapterCall` records the `operation` (`"list"`, `"get"`, `"create"`, `"update"`, or `"addComment"`), a cloned copy of the input, the `signal` (if any), and — for updates — the `expectedRevision` passed by the caller.
+
+```ts title="inspect-calls.test.ts"
+import { memoryWorkAdapter, workItemFixture } from "work-sdk/testing";
+
+const adapter = memoryWorkAdapter();
+adapter.seed([workItemFixture({ id: "42", identifier: "TEST-42", title: "Initial title" })]);
+
+await adapter.update("42", { title: "New title" }, { expectedRevision: "1" });
+
+expect(adapter.calls).toEqual([
+  {
+    operation: "update",
+    id: "42",
+    input: { title: "New title" },
+    expectedRevision: "1",
+    signal: undefined,
+  },
+]);
+expect(adapter.items.get("42")?.revision).toBe("2");
+
+adapter.clearCalls(); // forget recorded calls, keep state
+adapter.clear();      // reset everything
+```
+
+## Test critical scenarios [#scenarios]
+
+- Prepared plan contains the expected exact diff.
+- Mutating a plan causes fingerprint rejection.
+- Warnings block commit until explicitly acknowledged.
+- A repeated completed key returns `replayed: true`.
+- Two independent clients sharing one store perform one mutation.
+- A lost provider response becomes `WorkAmbiguousCommitError` and blocks retry.
+- A stale revision raises `WorkConflictError`.
+- Abort signals prevent provider calls.
+
+## Provider protocol tests [#fetch]
+
+Every first-party adapter accepts an injected WHATWG-compatible `fetch`. Assert URLs, authentication, escaped queries, request bodies, pagination, readback, and error normalization without network traffic.
+
+```ts title="azure-adapter.test.ts"
+const fetch = vi.fn(async (input, init) => {
+  const url = new URL(String(input));
+
+  if (url.pathname.endsWith("/_apis/wit/wiql")) {
+    return Response.json({ workItems: [{ id: 42 }] });
+  }
+
+  return Response.json(azureWorkItemFixture);
+});
+
+const adapter = azureDevOps({
+  organization: "acme",
+  project: "Platform",
+  fetch,
+});
+```
+
+<Callout type="info">
+Prefer real `Request`, `Response`, and `Headers` objects in mocks. They catch casing, status, body-consumption, and header behavior that plain objects hide.
+</Callout>
+
+## Custom adapter contract [#contract]
+
+The repository exports a reusable internal conformance suite for first-party development. External adapters should verify the same invariants: stable identity, cloned reads, pagination, revision advancement, conflicts, comments, and cancellation.
+
+## Recommended test pyramid [#recommended]
+
+| Layer | Purpose | Network |
+| --- | --- | --- |
+| Core unit tests | Plans, integrity, warnings, idempotency, conflicts | None |
+| Adapter protocol tests | Exact provider requests and responses | Injected fetch |
+| Package smoke | ESM/CJS/types/subpath exports after packing | Local install |
+| Sandbox integration | Tenant permissions and workflow metadata | Provider test tenant |
+| Production canary | Credential and API drift detection | Read-only or isolated target |

@@ -1,0 +1,110 @@
+---
+title: One contract, honest differences
+description: Adapters normalize the portable work-item model while preserving provider-native state names, raw payloads, capabilities, and failure behavior. The goal is portability without pretending every tracker works the same way.
+seoTitle: GitHub, GitLab, Linear, Jira, and Azure DevOps adapters
+keywords:
+  - GitHub Linear Jira SDK
+  - Azure DevOps TypeScript SDK
+  - issue tracker adapters
+---
+
+## Provider entry points [#imports]
+
+```ts title="providers.ts"
+import { github } from "work-sdk/github";
+import { gitlab } from "work-sdk/gitlab";
+import { linear } from "work-sdk/linear";
+import { jira } from "work-sdk/jira";
+import { azureDevOps } from "work-sdk/azure-devops";
+```
+
+Subpath exports keep provider implementations independently tree-shakeable. All adapters return the same `WorkAdapter` contract.
+
+## Capability matrix [#matrix]
+
+| Capability | GitHub | GitLab | Linear | Jira | Azure DevOps |
+| --- | --- | --- | --- | --- | --- |
+| Create / update | Yes | Yes | Yes | Yes | Yes |
+| Comments | Markdown | Markdown | Markdown | ADF | Markdown |
+| Custom states | No | No | Yes | Yes | Yes |
+| Priorities | No universal field | No universal field | Native | Native | 1–4 mapping |
+| Multiple assignees | Yes | Opt-in | No | No | No |
+| Parent links | No | No | Yes | Yes | Yes |
+| Search | Not in adapter | REST search | GraphQL filters | JQL | WIQL |
+| Concurrency | Readback revision | Readback revision | Readback revision | Readback revision | Native `/rev` test |
+
+## GitHub Issues [#github]
+
+```ts
+github({
+  owner: "acme",
+  repo: "web",
+  token: process.env.GITHUB_TOKEN,
+})
+```
+
+The adapter excludes pull requests from issue results, maps open/closed reasons, verifies fields through readback, and supports multiple assignees. GitHub Projects fields are intentionally outside the portable issue contract.
+
+<DocsNext href="/docs/providers/github" label="GitHub guide" description="Permissions, identifiers, mappings, safe writes, and limits." />
+
+## GitLab [#gitlab]
+
+```ts
+gitlab({
+  project: "acme/platform",
+  token: process.env.GITLAB_TOKEN!,
+  // apiBaseUrl: "https://gitlab.example.com/api/v4",
+})
+```
+
+The REST v4 adapter supports GitLab.com and Self-Managed. It validates labels before writes, requires explicit mappings for non-native issue kinds, and keeps tier-dependent multiple assignees opt-in.
+
+<DocsNext href="/docs/providers/gitlab" label="GitLab guide" description="Auth, Self-Managed, guarded labels, issue types, pagination, and concurrency limits." />
+
+## Linear [#linear]
+
+```ts
+linear({
+  apiKey: process.env.LINEAR_API_KEY!,
+  teamId: "team-id",
+})
+```
+
+Linear uses cursor pagination, one assignee, native priorities, and team-specific workflow states. The adapter resolves state and label names against provider metadata before a mutation.
+
+<DocsNext href="/docs/providers/linear" label="Linear guide" description="Teams, identifiers, native priorities, workflows, and safe writes." />
+
+## Jira Cloud [#jira]
+
+```ts
+jira({
+  baseUrl: "https://acme.atlassian.net",
+  email: process.env.JIRA_EMAIL!,
+  apiToken: process.env.JIRA_API_TOKEN!,
+  projectKey: "ENG",
+})
+```
+
+Jira status changes are transitions, not ordinary field updates. The adapter discovers available transitions and converts conservative text content to Atlassian Document Format.
+
+<DocsNext href="/docs/providers/jira" label="Jira guide" description="Authentication, workflow transitions, ADF content, fields, and limits." />
+
+## Azure DevOps [#azure]
+
+```ts
+azureDevOps({
+  organization: "acme",
+  project: "Platform",
+  auth: { type: "entra", token: accessToken },
+})
+```
+
+Azure DevOps uses WIQL for discovery and JSON Patch for mutation. Custom processes can redefine state and work-item type names, so the adapter exposes explicit normalization maps.
+
+<DocsNext href="/docs/providers/azure-devops" label="Azure DevOps guide" description="Authentication, custom process configuration, fields, pagination, and limitations." />
+
+## Provider escape hatches [#escape-hatches]
+
+Every normalized item, user, project, and comment can retain `raw`. Use it for reads that are not portable. For provider-specific writes outside the adapter contract, build a narrow custom tool instead of mutating `raw` and pretending the operation is normalized.
+
+<Callout type="info">Capability flags describe adapter-level support. Tenant workflow rules and user permissions can still reject an individual operation.</Callout>
