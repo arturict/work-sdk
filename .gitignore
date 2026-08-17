@@ -10,5 +10,3 @@ coverage
 !.env.example
 npm-debug.log*
 work/
-
-.vercel
