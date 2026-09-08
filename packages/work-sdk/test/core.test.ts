@@ -11,7 +11,7 @@ import {
   WorkUnsupportedError,
   WorkValidationError,
 } from "../src/errors.js";
-import { assertLimit, assertNonEmpty, fingerprint, stableStringify } from "../src/internal.js";
+import { assertLimit, assertNonEmpty, fingerprint, requiredOption, stableStringify, withoutUndefined } from "../src/internal.js";
 
 describe("stableStringify", () => {
   it.each([
@@ -48,6 +48,25 @@ describe("validation helpers", () => {
       assertNonEmpty("", "body");
     } catch (error) {
       expect(error).toMatchObject({ code: "validation", details: { field: "body" } });
+    }
+  });
+
+  it.each([undefined, null, 5, {}])("rejects the non-string value %j", (value) => {
+    expect(() => assertNonEmpty(value, "title")).toThrow(WorkValidationError);
+  });
+
+  it("drops undefined entries while keeping null and falsy values", () => {
+    expect(withoutUndefined({ a: undefined, b: null, c: 0, d: "" })).toEqual({ b: null, c: 0, d: "" });
+  });
+
+  it("trims required options and reports the provider", () => {
+    expect(requiredOption("  acme ", "organization", "azure-devops")).toBe("acme");
+    expect(requiredOption(77, "project", "gitlab")).toBe("77");
+    expect(() => requiredOption(" ", "project", "gitlab")).toThrow(WorkValidationError);
+    try {
+      requiredOption("", "project", "gitlab");
+    } catch (error) {
+      expect(error).toMatchObject({ code: "validation", provider: "gitlab", details: { field: "project" } });
     }
   });
 });

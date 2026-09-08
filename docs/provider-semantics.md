@@ -4,6 +4,8 @@
 
 GitHub Issues has an open/closed lifecycle with optional state reasons. It supports multiple assignees and labels, but has no universal issue priority. Returned assignee IDs are writable GitHub logins; the numeric REST ID remains in `raw`. GitHub Projects V2 is a separate object and field graph and is intentionally outside the portable contract.
 
+GitHub attaches rate-limit headers to ordinary responses, so the adapter reports `WorkRateLimitError` only for HTTP 429, an exhausted quota (`x-ratelimit-remaining: 0`), or an explicit `Retry-After`. Every other 403 is an authorization error.
+
 GitHub does not document general idempotency for issue mutations. Use a durable `IdempotencyStore` in distributed applications.
 
 ## Linear
@@ -27,6 +29,8 @@ Projects, issue types, editable fields, priorities, and transitions can vary by 
 ## Azure DevOps
 
 Azure Boards is process-driven. State names and work-item types vary across Basic, Agile, Scrum, CMMI, inherited, and custom processes. The adapter therefore separates provider-to-normalized maps (`stateMap`, `workItemTypeMap`) from normalized-to-provider write maps (`stateNameByCanonical`, `workItemTypeByKind`). Provider-native state names remain accepted. A canonical state with more than one possible provider name requires an explicit inverse mapping instead of guessing.
+
+Work-item IDs are organization-wide, so the adapter verifies `System.TeamProject` on every read and refuses to read, update, or comment on items outside the configured project.
 
 Discovery uses escaped WIQL followed by batch hydration. Pagination cursors represent offsets within a WIQL result window and are opaque to consumers. Azure's WIQL result ordering is not a durable snapshot when items change during a long crawl.
 

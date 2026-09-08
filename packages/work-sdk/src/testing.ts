@@ -4,6 +4,7 @@ import {
   WorkUnsupportedError,
   WorkValidationError,
 } from "./errors.js";
+import { throwIfAborted } from "./http.js";
 import type {
   AddCommentInput,
   CreateWorkItemInput,
@@ -91,12 +92,6 @@ export interface MemoryWorkAdapterOptions {
   capabilities?: Partial<WorkCapabilities>;
   items?: readonly WorkItem[];
   now?: () => Date;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) {
-    throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-  }
 }
 
 function unsupported(provider: WorkProvider, operation: string): never {

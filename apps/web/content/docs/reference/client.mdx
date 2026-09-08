@@ -43,6 +43,8 @@ list(input?: {
 
 Returns an opaque provider cursor. Never construct or parse cursors; pass `nextCursor` back unchanged.
 
+`assignee` takes the writable user reference that the provider exposes as `WorkUser.id`: a GitHub login, a numeric GitLab user ID, a Linear user ID, a Jira account ID, or an Azure DevOps identity.
+
 ## Prepare methods [#prepare]
 
 - `prepareCreate(input)` — Plan a new item without writing it.
@@ -50,6 +52,8 @@ Returns an opaque provider cursor. Never construct or parse cursors; pass `nextC
 - `prepareComment(id, input, options?)` — Read the target and plan a comment.
 
 Create plans do not have an expected revision. Update and comment plans capture the current item and opaque revision.
+
+Fields set to `undefined` are treated as absent: they never appear in `input` or `changes`, and an update that contains only undefined fields is rejected with `WorkValidationError`.
 
 ## `commit(change, options?)` [#commit]
 

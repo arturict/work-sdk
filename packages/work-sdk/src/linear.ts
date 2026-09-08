@@ -8,7 +8,7 @@ import {
   WorkUnsupportedError,
   WorkValidationError,
 } from "./errors.js";
-import type { WorkFetch } from "./http.js";
+import { providerFetch, retryAfterMs, throwIfAborted, type WorkFetch } from "./http.js";
 import { fingerprint } from "./internal.js";
 import type {
   AddCommentInput, CreateWorkItemInput, ListWorkItemsInput, UpdateWorkItemInput, WorkAdapter,
@@ -44,10 +44,6 @@ const ISSUE_FIELDS = `
   project { id slugId name }
   parent { id }
 `;
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-}
 
 function mapUser(value: LinearUser): WorkUser {
   return {
@@ -129,6 +125,13 @@ function errorCode(error: unknown): string | undefined {
     ? extensions.code : undefined;
 }
 
+/** Linear reports the request-quota reset as an epoch timestamp in milliseconds. */
+function linearRetryAfter(response: Response): number | undefined {
+  const reset = response.headers.get("x-ratelimit-requests-reset")?.trim();
+  if (reset && Number.isFinite(Number(reset))) return Math.max(0, Number(reset) - Date.now());
+  return retryAfterMs(response);
+}
+
 function linearError(status: number, errors: unknown[], response: Response): never {
   const first = errors[0];
   const code = errorCode(first)?.toUpperCase();
@@ -137,8 +140,8 @@ function linearError(status: number, errors: unknown[], response: Response): nev
   if (status === 401 || code === "AUTHENTICATION_ERROR" || code === "UNAUTHENTICATED") throw new WorkAuthenticationError(message, common);
   if (status === 403 || code === "FORBIDDEN") throw new WorkAuthorizationError(message, common);
   if (code === "RATELIMITED" || status === 429) {
-    const reset = Number(response.headers.get("x-ratelimit-requests-reset"));
-    throw new WorkRateLimitError(message, { ...common, ...(Number.isFinite(reset) ? { retryAfterMs: Math.max(0, reset - Date.now()) } : {}) });
+    const retry = linearRetryAfter(response);
+    throw new WorkRateLimitError(message, { ...common, ...(retry === undefined ? {} : { retryAfterMs: retry }) });
   }
   if (code === "NOT_FOUND") throw new WorkNotFoundError(message, common);
   if (code === "CONFLICT") throw new WorkConflictError(message, common);
@@ -168,17 +171,10 @@ export function linearWorkAdapter(options: LinearWorkAdapterOptions): WorkAdapte
   const endpoint = options.endpoint ?? "https://api.linear.app/graphql";
   const credential = options.accessToken ? `Bearer ${options.accessToken}` : options.apiKey;
   const graphql = async <T>(query: string, variables: Record<string, unknown>, signal?: AbortSignal): Promise<T> => {
-    throwIfAborted(signal);
-    let response: Response;
-    try {
-      response = await fetcher(endpoint, {
-        method: "POST", ...(signal ? { signal } : {}), headers: { "content-type": "application/json", ...(credential ? { authorization: credential } : {}) },
-        body: JSON.stringify({ query, variables }),
-      });
-    } catch (cause) {
-      if (cause instanceof WorkError) throw cause;
-      throw new WorkError("Network request to Linear failed", { code: "network", provider: "linear", cause });
-    }
+    const response = await providerFetch(fetcher, "linear", "Linear", endpoint, {
+      method: "POST", ...(signal ? { signal } : {}), headers: { "content-type": "application/json", ...(credential ? { authorization: credential } : {}) },
+      body: JSON.stringify({ query, variables }),
+    });
     let payload: { data?: T; errors?: unknown[] };
     try { payload = await response.json() as typeof payload; }
     catch (cause) { throw new WorkError("Linear returned invalid JSON", { code: "provider", provider: "linear", status: response.status, cause }); }

@@ -109,7 +109,7 @@ export default function HomePage() {
           </div>
           <dl className="hero-metrics" aria-label="Project quality">
             <div><dt>5</dt><dd>adapters</dd></div>
-            <div><dt>186</dt><dd>tests</dd></div>
+            <div><dt>211</dt><dd>tests</dd></div>
             <div><dt>0</dt><dd>runtime deps</dd></div>
           </dl>
         </div>

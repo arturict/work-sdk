@@ -223,4 +223,19 @@ describe("Azure DevOps adapter", () => {
     await expect(azureDevOpsWorkAdapter({ ...baseOptions, fetch: fetcher }).get("42", { signal: controller.signal })).rejects.toThrow("stop");
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it("falls back to Retry-After seconds when the millisecond hint is absent", async () => {
+    const fetcher = vi.fn<WorkFetch>(async () => json({ message: "failed" }, { status: 429, headers: { "retry-after": "2" } }));
+    const error = await azureDevOpsWorkAdapter({ ...baseOptions, fetch: fetcher }).get("42").catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(WorkRateLimitError);
+    expect((error as WorkRateLimitError).retryAfterMs).toBe(2_000);
+    const silent = vi.fn<WorkFetch>(async () => json({ message: "failed" }, { status: 429 }));
+    const unknownDelay = await azureDevOpsWorkAdapter({ ...baseOptions, fetch: silent }).get("42").catch((value: unknown) => value);
+    expect((unknownDelay as WorkRateLimitError).retryAfterMs).toBeUndefined();
+  });
+
+  it("rejects blank organization or project options before any request", () => {
+    expect(() => azureDevOpsWorkAdapter({ organization: " ", project: "Platform" })).toThrow("organization must not be empty");
+    expect(() => azureDevOpsWorkAdapter({ organization: "acme", project: "" })).toThrow("project must not be empty");
+  });
 });

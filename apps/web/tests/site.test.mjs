@@ -263,3 +263,13 @@ test("outbound conversion route only redirects allowlisted destinations", async 
   assert.match(shell, /\/go\/github\?from=header/);
   assert.match(shell, /\/go\/npm\?from=header/);
 });
+
+test("every response carries baseline security headers", async () => {
+  const config = await read("next.config.ts");
+  assert.match(config, /poweredByHeader: false/);
+  assert.match(config, /X-Content-Type-Options[\s\S]*?nosniff/);
+  assert.match(config, /X-Frame-Options[\s\S]*?DENY/);
+  assert.match(config, /Referrer-Policy[\s\S]*?strict-origin-when-cross-origin/);
+  assert.match(config, /source: "\/\(\.\*\)"/);
+  assert.match(await read("app/layout.tsx"), /referrer: "strict-origin-when-cross-origin"/);
+});

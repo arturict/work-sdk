@@ -10,7 +10,13 @@ import {
 import { fingerprint } from "../src/internal.js";
 import { MemoryIdempotencyStore } from "../src/store.js";
 import { memoryWorkAdapter, workItemFixture } from "../src/testing.js";
-import type { IdempotencyStore, PreparedWorkChange, WorkCapabilities } from "../src/types.js";
+import type {
+  CreateWorkItemInput,
+  IdempotencyStore,
+  PreparedWorkChange,
+  UpdateWorkItemInput,
+  WorkCapabilities,
+} from "../src/types.js";
 
 const NOW = new Date("2026-04-05T06:07:08.000Z");
 const existing = () => workItemFixture({
@@ -493,6 +499,29 @@ describe("commit", () => {
     const { adapter, client } = setup();
     const change = await client.prepareCreate({ title: "No mutation" });
     await expect(client.commit(change, { idempotencyKey })).rejects.toBeInstanceOf(WorkValidationError);
+    expect(adapter.calls).toHaveLength(0);
+  });
+
+  it("treats explicitly undefined fields as absent", async () => {
+    const { adapter, client } = setup();
+    const sparseUpdate = { title: undefined, labels: ["ready"] } as unknown as UpdateWorkItemInput;
+    const change = await client.prepareUpdate("item-1", sparseUpdate);
+    expect(change.input).toEqual({ labels: ["ready"] });
+    expect(change.changes).toEqual([{ field: "labels", before: ["bug"], after: ["ready"] }]);
+    await expect(client.prepareUpdate("item-1", { title: undefined } as unknown as UpdateWorkItemInput))
+      .rejects.toThrow("at least one field");
+
+    const sparseCreate = { title: "Sparse", description: undefined } as unknown as CreateWorkItemInput;
+    const create = await client.prepareCreate(sparseCreate);
+    expect(create.input).toEqual({ title: "Sparse" });
+    expect(create.changes).toEqual([{ field: "title", before: undefined, after: "Sparse" }]);
+    expect(adapter.calls.filter((call) => call.operation !== "get")).toHaveLength(0);
+  });
+
+  it("rejects non-string identifiers and titles with a validation error", async () => {
+    const { adapter, client } = setup();
+    await expect(client.get(undefined as unknown as string)).rejects.toBeInstanceOf(WorkValidationError);
+    await expect(client.prepareCreate({ title: 5 } as unknown as CreateWorkItemInput)).rejects.toBeInstanceOf(WorkValidationError);
     expect(adapter.calls).toHaveLength(0);
   });
 });

@@ -1,8 +1,5 @@
-import {
-  WorkAuthenticationError, WorkAuthorizationError, WorkConflictError, WorkError, WorkNotFoundError,
-  WorkRateLimitError, WorkValidationError,
-} from "./errors.js";
-import type { WorkFetch } from "./http.js";
+import { WorkConflictError, WorkValidationError } from "./errors.js";
+import { httpError, providerFetch, readBody, throwIfAborted, type WorkFetch } from "./http.js";
 import { fingerprint } from "./internal.js";
 import type {
   AddCommentInput, CreateWorkItemInput, ListWorkItemsInput, UpdateWorkItemInput, WorkAdapter,
@@ -38,9 +35,7 @@ interface JiraIssue {
 }
 interface JiraComment { id: string; body: AdfNode; author?: JiraUser; created: string; updated?: string; self?: string }
 
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-}
+const ERROR_MAPPING = { label: "Jira", notFound: "Jira resource was not found or is not visible" } as const;
 
 function adfText(node: AdfNode | null | undefined): string {
   if (!node) return "";
@@ -158,26 +153,6 @@ function validateAssignees(ids: string[] | undefined): void {
   if (ids && ids.length > 1) throw new WorkValidationError("Jira supports one assignee per issue", { provider: "jira", details: { field: "assigneeIds" } });
 }
 
-async function responseBody(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (!text) return undefined;
-  try { return JSON.parse(text); } catch { return text; }
-}
-
-function jiraError(response: Response, body: unknown): never {
-  const common = { provider: "jira" as const, status: response.status, details: body };
-  if (response.status === 401) throw new WorkAuthenticationError("Jira rejected the credentials", common);
-  if (response.status === 403) throw new WorkAuthorizationError("Jira denied the operation", common);
-  if (response.status === 404) throw new WorkNotFoundError("Jira resource was not found or is not visible", common);
-  if (response.status === 409 || response.status === 412) throw new WorkConflictError("Jira reported a conflict", common);
-  if (response.status === 400 || response.status === 422) throw new WorkValidationError("Jira rejected the request", common);
-  if (response.status === 429) {
-    const seconds = Number(response.headers.get("retry-after"));
-    throw new WorkRateLimitError("Jira rate limit exceeded", { ...common, ...(Number.isFinite(seconds) ? { retryAfterMs: seconds * 1_000 } : {}) });
-  }
-  throw new WorkError(`Jira request failed with ${response.status}`, { ...common, code: "provider" });
-}
-
 export function jiraWorkAdapter(options: JiraWorkAdapterOptions): WorkAdapter {
   if (!options.baseUrl.trim()) throw new WorkValidationError("baseUrl must not be empty", { provider: "jira" });
   const hasBasicPart = options.email !== undefined || options.apiToken !== undefined;
@@ -195,19 +170,13 @@ export function jiraWorkAdapter(options: JiraWorkAdapterOptions): WorkAdapter {
   const authorization = options.accessToken ? `Bearer ${options.accessToken}`
     : options.email && options.apiToken ? `Basic ${Buffer.from(`${options.email}:${options.apiToken}`).toString("base64")}` : undefined;
   const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
-    throwIfAborted(init.signal ?? undefined);
-    let response: Response;
-    try {
-      response = await fetcher(`${base}${path}`, {
-        ...init,
-        headers: { accept: "application/json", ...(authorization ? { authorization } : {}), ...(init.body ? { "content-type": "application/json" } : {}), ...init.headers },
-      });
-    } catch (cause) {
-      if (cause instanceof WorkError) throw cause;
-      throw new WorkError("Network request to Jira failed", { code: "network", provider: "jira", cause });
-    }
-    if (!response.ok) jiraError(response, await responseBody(response));
-    return response.status === 204 ? undefined as T : await response.json() as T;
+    const response = await providerFetch(fetcher, "jira", "Jira", `${base}${path}`, {
+      ...init,
+      headers: { accept: "application/json", ...(authorization ? { authorization } : {}), ...(init.body ? { "content-type": "application/json" } : {}), ...init.headers },
+    });
+    const body = await readBody(response);
+    if (!response.ok) httpError("jira", response, body, ERROR_MAPPING);
+    return body as T;
   };
 
   const get = async (id: string, signal?: AbortSignal): Promise<WorkItem> => {

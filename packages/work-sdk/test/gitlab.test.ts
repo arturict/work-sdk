@@ -288,4 +288,24 @@ describe("GitLab adapter", () => {
     await expect(adapter.addComment("42", { body: "No" }, { signal: controller.signal })).rejects.toThrow("stop");
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it("filters by numeric assignee IDs and still accepts usernames", async () => {
+    const fetcher = vi.fn<WorkFetch>(async () => json([]));
+    const adapter = gitlabWorkAdapter({ project: 77, fetch: fetcher });
+    await adapter.list({ assignee: "7" });
+    await adapter.list({ assignee: "ada" });
+    const byId = new URL(String(fetcher.mock.calls[0]![0])).searchParams;
+    const byName = new URL(String(fetcher.mock.calls[1]![0])).searchParams;
+    expect(byId.get("assignee_id")).toBe("7");
+    expect(byId.has("assignee_username")).toBe(false);
+    expect(byName.get("assignee_username")).toBe("ada");
+    expect(byName.has("assignee_id")).toBe(false);
+  });
+
+  it("normalizes transport failures and authentication responses", async () => {
+    const offline = vi.fn<WorkFetch>(async () => { throw new TypeError("fetch failed"); });
+    await expect(gitlabWorkAdapter({ project: 77, fetch: offline }).get("42")).rejects.toMatchObject({ code: "network", provider: "gitlab" });
+    const unauthenticated = vi.fn<WorkFetch>(async () => json({ message: "401 Unauthorized" }, { status: 401 }));
+    await expect(gitlabWorkAdapter({ project: 77, fetch: unauthenticated }).get("42")).rejects.toMatchObject({ code: "authentication", status: 401 });
+  });
 });
