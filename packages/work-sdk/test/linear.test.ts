@@ -96,4 +96,16 @@ describe("Linear adapter", () => {
     expect(await adapter.addComment("ENG-42", { body: "Done" })).toMatchObject({ id: "comment-1", author: { displayName: "Ada" } });
     await expect(adapter.create({ title: "No", assigneeIds: ["a", "b"] })).rejects.toBeInstanceOf(WorkValidationError);
   });
+
+  it("omits retryAfterMs when Linear sends no reset header", async () => {
+    const fetcher = vi.fn<WorkFetch>(async () => json({ errors: [{ message: "Limited", extensions: { code: "RATELIMITED" } }] }, { status: 429 }));
+    const error = await linearWorkAdapter({ fetch: fetcher }).get("ENG-42").catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(WorkRateLimitError);
+    expect((error as WorkRateLimitError).retryAfterMs).toBeUndefined();
+  });
+
+  it("wraps transport failures as network errors", async () => {
+    const fetcher = vi.fn<WorkFetch>(async () => { throw new TypeError("fetch failed"); });
+    await expect(linearWorkAdapter({ fetch: fetcher }).get("ENG-42")).rejects.toMatchObject({ code: "network", provider: "linear" });
+  });
 });

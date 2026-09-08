@@ -1,6 +1,6 @@
 {
   "name": "work-sdk",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Unified TypeScript issue-tracker API for GitHub, GitLab, Linear, Jira, and Azure DevOps, with safe AI-agent writes.",
   "keywords": [
     "issue-tracker",

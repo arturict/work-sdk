@@ -52,3 +52,7 @@ The v0.x line publishes one zero-runtime-dependency package with stable subpath 
 - `work-sdk/testing` — fixtures and adapter testing utilities
 
 This gives users one installation while keeping provider code tree-shakeable and independently testable. The subpaths can become separate packages in a future major version if ecosystem scale warrants it.
+
+## Internal layering
+
+Inside the package, `client.ts` owns the safe-write protocol, `internal.ts` owns fingerprints and input validation, and `http.ts` owns the transport helpers shared by every REST and GraphQL adapter: abort handling, body parsing, `Retry-After` parsing, network-error wrapping, and the HTTP status to error-class mapping. Adapters layer provider-specific wording and special cases on top of that mapping (GitHub's 403 rate limits, Azure's 203 sign-in responses, Linear's GraphQL error codes) instead of re-implementing it. Only the `WorkFetch` type from that module is public API.

@@ -23,7 +23,7 @@ const work = createWorkClient({
 });
 ```
 
-The adapter targets Azure DevOps REST API 7.1. The organization and project are path-scoped, so an accidentally supplied foreign project is rejected rather than silently redirected. An optional `fetch` option accepts a custom `WorkFetch` implementation when you need to route requests through instrumented or proxied HTTP clients.
+The adapter targets Azure DevOps REST API 7.1. The organization and project are path-scoped, so an accidentally supplied foreign project is rejected rather than silently redirected. Work-item IDs are organization-wide, so the adapter also verifies `System.TeamProject` on every read and rejects items that belong to another project with `WorkAuthorizationError` before any update or comment. An optional `fetch` option accepts a custom `WorkFetch` implementation when you need to route requests through instrumented or proxied HTTP clients.
 
 ## Authentication [#authentication]
 
@@ -137,7 +137,7 @@ WIQL offset pagination is not a snapshot. For long-running crawls, items changin
 
 ## Native revision protection [#concurrency]
 
-Prepared updates capture Azure's numeric `rev`. Commit first rechecks the normalized revision, then sends a JSON Patch `test` operation against `/rev` in the same mutation request. A stale write fails as `WorkConflictError`.
+Prepared updates capture Azure's numeric `rev`. Commit first rechecks the normalized revision, then sends a JSON Patch `test` operation against `/rev` in the same mutation request. A stale write fails as `WorkConflictError`. The same patch also tests `System.TeamProject`, so an item moved to another project between preflight and write fails closed.
 
 ## Azure DevOps Server and proxies [#server]
 

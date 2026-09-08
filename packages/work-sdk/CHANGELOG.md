@@ -1,5 +1,11 @@
 # work-sdk
 
+## 0.6.0
+
+### Minor Changes
+
+- Audit release. Fix ordinary GitHub 403 permission failures being classified as rate limits, report `retryAfterMs` as `undefined` instead of `0` when Jira, Linear, or Azure DevOps send no retry hint, accept numeric GitLab user IDs in `list({ assignee })`, enforce Azure DevOps project boundaries on read, update, and comment, treat explicitly undefined input fields as absent when preparing changes, and consolidate the adapter transport helpers into one internal HTTP layer with unchanged error codes and messages.
+
 ## 0.5.0
 
 ### Minor Changes

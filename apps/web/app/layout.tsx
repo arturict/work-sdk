@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   creator: "Work SDK contributors",
   publisher: "Work SDK contributors",
   category: "Developer tools",
-  referrer: "origin-when-cross-origin",
+  referrer: "strict-origin-when-cross-origin",
   formatDetection: {
     address: false,
     email: false,

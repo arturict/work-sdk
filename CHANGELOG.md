@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.6.0 — 2026-09-08
+
+- Audited every provider endpoint, the client contract, and the repository
+  structure; the fixes below keep the public API and error taxonomy unchanged.
+- Fixed ordinary GitHub 403 permission failures being reported as
+  `WorkRateLimitError`. GitHub attaches `x-ratelimit-reset` to most responses,
+  so only HTTP 429, an exhausted quota (`x-ratelimit-remaining: 0`), or an
+  explicit `Retry-After` now counts as a rate limit.
+- Fixed `retryAfterMs` being `0` instead of `undefined` when Jira, Linear, or
+  Azure DevOps rate-limit responses carry no retry hint; Linear and Azure now
+  also honor the standard `Retry-After` header.
+- Fixed GitLab `list({ assignee })` to accept the numeric `WorkUser.id`
+  (`assignee_id`) while still accepting usernames.
+- Enforced Azure DevOps project boundaries: items outside the configured
+  project are rejected with `WorkAuthorizationError` on read, update, and
+  comment, and updates test `System.TeamProject` atomically (#9).
+- Treated explicitly `undefined` input fields as absent in `prepareCreate` and
+  `prepareUpdate`, so they no longer produce phantom diff entries, and rejected
+  non-string ids and titles with `WorkValidationError` instead of a `TypeError`.
+- Consolidated the five duplicated adapter transport helpers into one internal
+  HTTP layer and removed the unused `requestJson`; messages, codes, and
+  statuses are unchanged.
+- Hardened the tag-triggered publish workflow: the tag must match the package
+  version and be reachable from `main`.
+- Added baseline security headers to the documentation site and corrected the
+  docs for the GitLab assignee filter, Azure project scoping, undefined-field
+  handling, and retry hints.
+- Expanded the suite to 211 tests.
+
 ## 0.5.0 — 2026-07-24
 
 - Return action-specific commit receipts: `commit()` narrows its result type to

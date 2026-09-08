@@ -4,13 +4,11 @@ import {
   WorkAuthenticationError,
   WorkAuthorizationError,
   WorkConflictError,
-  WorkError,
-  WorkNotFoundError,
-  WorkRateLimitError,
   WorkUnsupportedError,
   WorkValidationError,
 } from "./errors.js";
-import type { WorkFetch } from "./http.js";
+import { httpError, providerFetch, readBody, retryAfterMs, throwIfAborted, type WorkFetch } from "./http.js";
+import { requiredOption } from "./internal.js";
 import type {
   AddCommentInput,
   CreateWorkItemInput,
@@ -143,15 +141,12 @@ const PRIORITY_TO_AZURE: Readonly<Partial<Record<WorkItemPriority, number>>> = {
   low: 4,
 };
 
-function required(value: string, field: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) throw new WorkValidationError(`${field} must not be empty`, { provider: "azure-devops", details: { field } });
-  return trimmed;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-}
+const ERROR_MAPPING = {
+  label: "Azure DevOps",
+  notFound: "Azure DevOps work item was not found",
+  conflict: "Azure DevOps reported a revision conflict",
+  retryAfterMs: azureRetryAfter,
+} as const;
 
 function field<T>(item: AzureWorkItem, name: string): T | undefined {
   return item.fields[name] as T | undefined;
@@ -255,35 +250,19 @@ function cursorOffset(cursor?: string): number {
   return Number(match[1]);
 }
 
-function retryAfterMs(response: Response): number | undefined {
-  const milliseconds = Number(response.headers.get("x-ms-retry-after-ms"));
-  if (Number.isFinite(milliseconds) && milliseconds >= 0) return milliseconds;
-  const value = response.headers.get("retry-after");
-  if (!value) return undefined;
-  const seconds = Number(value);
-  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
-  const date = Date.parse(value);
-  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
+/** Azure DevOps prefers a millisecond hint and falls back to the standard Retry-After header. */
+function azureRetryAfter(response: Response): number | undefined {
+  const hint = response.headers.get("x-ms-retry-after-ms")?.trim();
+  if (hint && Number.isFinite(Number(hint)) && Number(hint) >= 0) return Number(hint);
+  return retryAfterMs(response);
 }
 
+/** Azure answers unauthenticated requests with a 203 sign-in page instead of a 401. */
 function providerError(response: Response, details: unknown): never {
-  const common = { provider: "azure-devops" as const, status: response.status, details };
-  if (response.status === 203 || response.status === 401) throw new WorkAuthenticationError("Azure DevOps rejected the credentials", common);
-  if (response.status === 403) throw new WorkAuthorizationError("Azure DevOps denied the operation", common);
-  if (response.status === 404) throw new WorkNotFoundError("Azure DevOps work item was not found", common);
-  if (response.status === 409 || response.status === 412) throw new WorkConflictError("Azure DevOps reported a revision conflict", common);
-  if (response.status === 400 || response.status === 422) throw new WorkValidationError("Azure DevOps rejected the request", common);
-  if (response.status === 429) {
-    const retry = retryAfterMs(response);
-    throw new WorkRateLimitError("Azure DevOps rate limit exceeded", { ...common, ...(retry === undefined ? {} : { retryAfterMs: retry }) });
+  if (response.status === 203) {
+    throw new WorkAuthenticationError("Azure DevOps rejected the credentials", { provider: "azure-devops", status: response.status, details });
   }
-  throw new WorkError(`Azure DevOps request failed with ${response.status}`, { ...common, code: "provider" });
-}
-
-async function responseBody(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (!text) return undefined;
-  try { return JSON.parse(text); } catch { return text; }
+  return httpError("azure-devops", response, details, ERROR_MAPPING);
 }
 
 function parentRelationIndex(item: AzureWorkItem): number {
@@ -311,8 +290,8 @@ function verifyApplied(item: WorkItem, input: CreateWorkItemInput | UpdateWorkIt
 }
 
 export function azureDevOpsWorkAdapter(options: AzureDevOpsWorkAdapterOptions): WorkAdapter {
-  const organization = required(options.organization, "organization");
-  const project = required(options.project, "project");
+  const organization = requiredOption(options.organization, "organization", "azure-devops");
+  const project = requiredOption(options.project, "project", "azure-devops");
   if (options.auth && !options.auth.token.trim()) throw new WorkValidationError("auth.token must not be empty", { provider: "azure-devops", details: { field: "auth.token" } });
   const fetcher = options.fetch ?? globalThis.fetch;
   const collectionBase = (options.apiBaseUrl ?? `https://dev.azure.com/${encodeURIComponent(organization)}`).replace(/\/$/, "");
@@ -344,23 +323,16 @@ export function azureDevOpsWorkAdapter(options: AzureDevOpsWorkAdapterOptions): 
   };
 
   const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
-    throwIfAborted(init.signal ?? undefined);
-    let response: Response;
-    try {
-      response = await fetcher(`${projectBase}${path}`, {
-        ...init,
-        headers: {
-          accept: "application/json",
-          ...(authorization ? { authorization } : {}),
-          ...(init.body ? { "content-type": "application/json" } : {}),
-          ...init.headers,
-        },
-      });
-    } catch (cause) {
-      if (cause instanceof WorkError) throw cause;
-      throw new WorkError("Network request to Azure DevOps failed", { code: "network", provider: "azure-devops", cause });
-    }
-    const body = await responseBody(response);
+    const response = await providerFetch(fetcher, "azure-devops", "Azure DevOps", `${projectBase}${path}`, {
+      ...init,
+      headers: {
+        accept: "application/json",
+        ...(authorization ? { authorization } : {}),
+        ...(init.body ? { "content-type": "application/json" } : {}),
+        ...init.headers,
+      },
+    });
+    const body = await readBody(response);
     if (!response.ok || response.status === 203) providerError(response, body);
     return body as T;
   };

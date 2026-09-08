@@ -92,7 +92,7 @@ Use numeric GitLab user IDs in `assigneeIds`. Multiple assignees are tier-depend
 
 ## Search and pagination [#pagination]
 
-`list` forwards text search, assignee username, labels, and opened/closed state filters. The adapter uses opaque `gitlab:page:…` cursors and reads `X-Next-Page` or the standard Link header without depending on total-count headers.
+`list` forwards text search, assignee (the numeric GitLab user ID exposed as `WorkUser.id`, or a username), labels, and opened/closed state filters. The adapter uses opaque `gitlab:page:…` cursors and reads `X-Next-Page` or the standard Link header without depending on total-count headers.
 
 ```ts title="list.ts"
 const page = await work.list({

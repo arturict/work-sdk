@@ -118,4 +118,18 @@ describe("Jira adapter", () => {
     expect(error).toBeInstanceOf(WorkRateLimitError);
     expect((error as WorkRateLimitError).retryAfterMs).toBe(3_000);
   });
+
+  it("omits retryAfterMs when Jira sends no Retry-After header", async () => {
+    const fetcher = vi.fn<WorkFetch>(async () => json({ errorMessages: ["limited"] }, { status: 429 }));
+    const adapter = jiraWorkAdapter({ baseUrl: "https://acme.atlassian.net", fetch: fetcher });
+    const error = await adapter.get("ENG-42").catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(WorkRateLimitError);
+    expect((error as WorkRateLimitError).retryAfterMs).toBeUndefined();
+  });
+
+  it("maps not-found and empty transition responses", async () => {
+    const missing = vi.fn<WorkFetch>(async () => json({ errorMessages: ["Issue does not exist"] }, { status: 404 }));
+    await expect(jiraWorkAdapter({ baseUrl: "https://acme.atlassian.net", fetch: missing }).get("ENG-404"))
+      .rejects.toThrow("Jira resource was not found or is not visible");
+  });
 });

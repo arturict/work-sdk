@@ -5,7 +5,7 @@ import {
   WorkUnsupportedError,
   WorkValidationError,
 } from "./errors.js";
-import { assertLimit, assertNonEmpty, changeId, fingerprint, stableStringify } from "./internal.js";
+import { assertLimit, assertNonEmpty, changeId, fingerprint, stableStringify, withoutUndefined } from "./internal.js";
 import { MemoryIdempotencyStore } from "./store.js";
 import type {
   AddCommentInput,
@@ -136,35 +136,36 @@ export function createWorkClient(options: WorkClientOptions): WorkClient {
 
     async prepareCreate(input) {
       if (!adapter.capabilities.create) throw new WorkUnsupportedError(`${adapter.provider} does not support creating items`, { provider: adapter.provider });
-      assertNonEmpty(input.title, "title");
-      const changes: WorkChangeField[] = Object.entries(input)
-        .filter(([, value]) => value !== undefined)
+      const create = withoutUndefined(structuredClone(input));
+      assertNonEmpty(create.title, "title");
+      const changes: WorkChangeField[] = Object.entries(create)
         .map(([field, after]) => ({ field, before: undefined, after: structuredClone(after) }));
       return prepared({
         action: "create",
         provider: adapter.provider,
-        input: structuredClone(input),
+        input: create,
         changes,
-        warnings: warningsFor(adapter, input),
-        summary: `Create “${input.title}” in ${adapter.provider}`,
+        warnings: warningsFor(adapter, create),
+        summary: `Create “${create.title}” in ${adapter.provider}`,
       }, now());
     },
 
     async prepareUpdate(id, input, callOptions) {
       if (!adapter.capabilities.update) throw new WorkUnsupportedError(`${adapter.provider} does not support updating items`, { provider: adapter.provider });
       assertNonEmpty(id, "id");
-      if (Object.keys(input).length === 0) throw new WorkValidationError("Update must contain at least one field");
-      if (input.title !== undefined) assertNonEmpty(input.title, "title");
+      const update = withoutUndefined(structuredClone(input));
+      if (Object.keys(update).length === 0) throw new WorkValidationError("Update must contain at least one field");
+      if (update.title !== undefined) assertNonEmpty(update.title, "title");
       const current = await adapter.get(id, callOptions);
-      const changes = changesForUpdate(current, input);
+      const changes = changesForUpdate(current, update);
       return prepared({
         action: "update",
         provider: adapter.provider,
         targetId: id,
-        input: structuredClone(input),
+        input: update,
         current,
         changes,
-        warnings: warningsFor(adapter, input),
+        warnings: warningsFor(adapter, update),
         summary: changes.length === 0
           ? `No changes for ${current.identifier}`
           : `Update ${current.identifier}: ${changes.map((change) => change.field).join(", ")}`,

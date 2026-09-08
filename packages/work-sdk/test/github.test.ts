@@ -103,4 +103,43 @@ describe("GitHub adapter", () => {
     await expect(adapter.create({ title: "No", project: "other/repo" })).rejects.toBeInstanceOf(WorkValidationError);
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it("keeps ordinary 403 permission failures distinct from rate limits", async () => {
+    const fetcher = vi.fn<WorkFetch>(async () => json({ message: "Resource not accessible by integration" }, {
+      status: 403,
+      headers: { "x-ratelimit-limit": "5000", "x-ratelimit-remaining": "4999", "x-ratelimit-reset": "1893456000" },
+    }));
+    const adapter = githubWorkAdapter({ owner: "acme", repo: "app", token: "secret", fetch: fetcher });
+    const error = await adapter.get("42").catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(WorkAuthorizationError);
+    expect(error).not.toBeInstanceOf(WorkRateLimitError);
+  });
+
+  it("maps an exhausted primary quota to a rate limit with the reset delay", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    try {
+      const reset = String(Math.floor(Date.now() / 1_000) + 30);
+      const fetcher = vi.fn<WorkFetch>(async () => json({ message: "API rate limit exceeded" }, {
+        status: 403,
+        headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": reset },
+      }));
+      const error = await githubWorkAdapter({ owner: "acme", repo: "app", fetch: fetcher }).get("42").catch((value: unknown) => value);
+      expect(error).toBeInstanceOf(WorkRateLimitError);
+      expect((error as WorkRateLimitError).retryAfterMs).toBe(30_000);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("normalizes authentication and not-found failures", async () => {
+    const unauthenticated = vi.fn<WorkFetch>(async () => json({ message: "Bad credentials" }, { status: 401 }));
+    await expect(githubWorkAdapter({ owner: "acme", repo: "app", fetch: unauthenticated }).get("42")).rejects.toMatchObject({
+      code: "authentication",
+      provider: "github",
+      status: 401,
+    });
+    const missing = vi.fn<WorkFetch>(async () => json({ message: "Not Found" }, { status: 404 }));
+    await expect(githubWorkAdapter({ owner: "acme", repo: "app", fetch: missing }).get("42")).rejects.toThrow("GitHub issue was not found");
+  });
 });

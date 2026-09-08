@@ -1,15 +1,12 @@
 import {
-  WorkAuthenticationError,
   WorkAuthorizationError,
   WorkConflictError,
   WorkError,
-  WorkNotFoundError,
-  WorkRateLimitError,
   WorkUnsupportedError,
   WorkValidationError,
 } from "./errors.js";
-import { fingerprint } from "./internal.js";
-import type { WorkFetch } from "./http.js";
+import { httpError, providerFetch, readBody, throwIfAborted, type WorkFetch } from "./http.js";
+import { fingerprint, requiredOption } from "./internal.js";
 import type {
   AddCommentInput,
   CreateWorkItemInput,
@@ -88,52 +85,7 @@ interface GitLabNote {
   noteable_iid?: number;
 }
 
-function required(value: string | number, field: string): string {
-  const normalized = String(value).trim();
-  if (!normalized) {
-    throw new WorkValidationError(`${field} must not be empty`, {
-      provider: "gitlab",
-      details: { field },
-    });
-  }
-  return normalized;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-}
-
-function retryAfterMs(response: Response): number | undefined {
-  const value = response.headers.get("retry-after");
-  if (!value) return undefined;
-  const seconds = Number(value);
-  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
-  const date = Date.parse(value);
-  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
-}
-
-async function responseBody(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (!text) return undefined;
-  try { return JSON.parse(text); } catch { return text; }
-}
-
-function gitlabError(response: Response, body: unknown): never {
-  const common = { provider: "gitlab" as const, status: response.status, details: body };
-  if (response.status === 401) throw new WorkAuthenticationError("GitLab rejected the credentials", common);
-  if (response.status === 403) throw new WorkAuthorizationError("GitLab denied the operation", common);
-  if (response.status === 404) throw new WorkNotFoundError("GitLab resource was not found", common);
-  if (response.status === 409 || response.status === 412) throw new WorkConflictError("GitLab reported a conflict", common);
-  if (response.status === 400 || response.status === 422) throw new WorkValidationError("GitLab rejected the request", common);
-  if (response.status === 429) {
-    const retry = retryAfterMs(response);
-    throw new WorkRateLimitError("GitLab rate limit exceeded", {
-      ...common,
-      ...(retry === undefined ? {} : { retryAfterMs: retry }),
-    });
-  }
-  throw new WorkError(`GitLab request failed with ${response.status}`, { ...common, code: "provider" });
-}
+const ERROR_MAPPING = { label: "GitLab" } as const;
 
 function mapUser(value: GitLabUser): WorkUser {
   return {
@@ -324,7 +276,7 @@ function verifyApplied(
 }
 
 export function gitlabWorkAdapter(options: GitLabWorkAdapterOptions): WorkAdapter {
-  const project = required(options.project, "project");
+  const project = requiredOption(options.project, "project", "gitlab");
   if (options.token && options.auth) {
     throw new WorkValidationError("Use either token or auth, not both", {
       provider: "gitlab",
@@ -349,25 +301,18 @@ export function gitlabWorkAdapter(options: GitLabWorkAdapterOptions): WorkAdapte
   };
 
   const request = async <T>(path: string, init: RequestInit = {}): Promise<{ body: T; response: Response }> => {
-    throwIfAborted(init.signal ?? undefined);
-    let response: Response;
-    try {
-      response = await fetcher(`${base}${path}`, {
-        ...init,
-        headers: {
-          accept: "application/json",
-          ...(auth?.type === "private-token" ? { "private-token": auth.token } : {}),
-          ...(auth?.type === "oauth" ? { authorization: `Bearer ${auth.token}` } : {}),
-          ...(init.body ? { "content-type": "application/json" } : {}),
-          ...init.headers,
-        },
-      });
-    } catch (cause) {
-      if (cause instanceof WorkError) throw cause;
-      throw new WorkError("Network request to GitLab failed", { code: "network", provider: "gitlab", cause });
-    }
-    const body = await responseBody(response);
-    if (!response.ok) gitlabError(response, body);
+    const response = await providerFetch(fetcher, "gitlab", "GitLab", `${base}${path}`, {
+      ...init,
+      headers: {
+        accept: "application/json",
+        ...(auth?.type === "private-token" ? { "private-token": auth.token } : {}),
+        ...(auth?.type === "oauth" ? { authorization: `Bearer ${auth.token}` } : {}),
+        ...(init.body ? { "content-type": "application/json" } : {}),
+        ...init.headers,
+      },
+    });
+    const body = await readBody(response);
+    if (!response.ok) httpError("gitlab", response, body, ERROR_MAPPING);
     return { body: body as T, response };
   };
 
@@ -465,7 +410,8 @@ export function gitlabWorkAdapter(options: GitLabWorkAdapterOptions): WorkAdapte
         with_labels_details: "true",
       });
       if (input.query) params.set("search", input.query);
-      if (input.assignee) params.set("assignee_username", input.assignee);
+      // WorkUser.id is the numeric GitLab user ID; usernames remain accepted for convenience.
+      if (input.assignee) params.set(/^\d+$/.test(input.assignee) ? "assignee_id" : "assignee_username", input.assignee);
       if (input.labels?.length) params.set("labels", input.labels.join(","));
       const state = listState(input.state);
       if (state) params.set("state", state);

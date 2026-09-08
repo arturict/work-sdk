@@ -29,7 +29,7 @@ keywords:
 error.code          // stable WorkErrorCode
 error.provider      // github | linear | jira | azure-devops | gitlab | custom
 error.status        // provider HTTP status when available
-error.retryAfterMs  // normalized delay for rate limits
+error.retryAfterMs  // normalized delay for rate limits; undefined without a provider hint
 error.details       // parsed provider or validation context
 error.cause         // standard Error cause chain
 ```

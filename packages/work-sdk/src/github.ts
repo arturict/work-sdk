@@ -1,15 +1,13 @@
 import {
-  WorkAuthenticationError,
   WorkAuthorizationError,
   WorkConflictError,
-  WorkError,
   WorkNotFoundError,
   WorkRateLimitError,
   WorkUnsupportedError,
   WorkValidationError,
 } from "./errors.js";
+import { httpError, providerFetch, readBody, retryAfterMs, throwIfAborted, type WorkFetch } from "./http.js";
 import { fingerprint } from "./internal.js";
-import type { WorkFetch } from "./http.js";
 import type {
   AddCommentInput,
   CreateWorkItemInput,
@@ -66,42 +64,34 @@ interface GitHubComment {
   html_url?: string;
 }
 
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-}
+const ERROR_MAPPING = { label: "GitHub", notFound: "GitHub issue was not found", retryAfterMs: githubRetryAfter } as const;
 
-function retryAfter(response: Response): number | undefined {
-  const raw = response.headers.get("retry-after");
-  if (raw) {
-    const seconds = Number(raw);
-    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1_000);
-  }
+/** GitHub sends Retry-After for secondary limits and an epoch reset time for primary limits. */
+function githubRetryAfter(response: Response): number | undefined {
+  const standard = retryAfterMs(response);
+  if (standard !== undefined) return standard;
   const reset = Number(response.headers.get("x-ratelimit-reset"));
   return Number.isFinite(reset) && reset > 0 ? Math.max(0, reset * 1_000 - Date.now()) : undefined;
 }
 
-async function details(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (!text) return undefined;
-  try { return JSON.parse(text); } catch { return text; }
+/**
+ * GitHub attaches x-ratelimit-* headers to almost every response, so only an
+ * exhausted quota or an explicit Retry-After separates a limit from an
+ * ordinary permission failure.
+ */
+function isRateLimited(response: Response): boolean {
+  if (response.status === 429) return true;
+  return response.status === 403 && (response.headers.has("retry-after") || response.headers.get("x-ratelimit-remaining") === "0");
 }
 
 function githubError(response: Response, body: unknown): never {
-  const common = { provider: "github" as const, status: response.status, details: body };
-  if (response.status === 401) throw new WorkAuthenticationError("GitHub rejected the credentials", common);
-  if (response.status === 403 && (response.headers.has("retry-after") || response.headers.has("x-ratelimit-reset") || response.headers.get("x-ratelimit-remaining") === "0")) {
-    const retryAfterMs = retryAfter(response);
-    throw new WorkRateLimitError("GitHub rate limit exceeded", { ...common, ...(retryAfterMs === undefined ? {} : { retryAfterMs }) });
+  if (isRateLimited(response)) {
+    const retry = githubRetryAfter(response);
+    throw new WorkRateLimitError("GitHub rate limit exceeded", {
+      provider: "github", status: response.status, details: body, ...(retry === undefined ? {} : { retryAfterMs: retry }),
+    });
   }
-  if (response.status === 403) throw new WorkAuthorizationError("GitHub denied the operation", common);
-  if (response.status === 404) throw new WorkNotFoundError("GitHub issue was not found", common);
-  if (response.status === 409 || response.status === 412) throw new WorkConflictError("GitHub reported a conflict", common);
-  if (response.status === 422 || response.status === 400) throw new WorkValidationError("GitHub rejected the request", common);
-  if (response.status === 429) {
-    const retryAfterMs = retryAfter(response);
-    throw new WorkRateLimitError("GitHub rate limit exceeded", { ...common, ...(retryAfterMs === undefined ? {} : { retryAfterMs }) });
-  }
-  throw new WorkError(`GitHub request failed with ${response.status}`, { ...common, code: "provider" });
+  return httpError("github", response, body, ERROR_MAPPING);
 }
 
 function user(value: GitHubUser): WorkUser {
@@ -227,25 +217,19 @@ export function githubWorkAdapter(options: GitHubWorkAdapterOptions): WorkAdapte
   const base = (options.apiBaseUrl ?? "https://api.github.com").replace(/\/$/, "");
   const repoPath = `/repos/${encodeURIComponent(options.owner)}/${encodeURIComponent(options.repo)}`;
   const request = async <T>(path: string, init: RequestInit = {}): Promise<{ body: T; response: Response }> => {
-    throwIfAborted(init.signal ?? undefined);
-    let response: Response;
-    try {
-      response = await fetcher(`${base}${path}`, {
-        ...init,
-        headers: {
-          accept: "application/vnd.github+json",
-          "x-github-api-version": "2022-11-28",
-          ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
-          ...(init.body ? { "content-type": "application/json" } : {}),
-          ...init.headers,
-        },
-      });
-    } catch (cause) {
-      if (cause instanceof WorkError) throw cause;
-      throw new WorkError("Network request to GitHub failed", { code: "network", provider: "github", cause });
-    }
-    if (!response.ok) githubError(response, await details(response));
-    return { body: response.status === 204 ? undefined as T : await response.json() as T, response };
+    const response = await providerFetch(fetcher, "github", "GitHub", `${base}${path}`, {
+      ...init,
+      headers: {
+        accept: "application/vnd.github+json",
+        "x-github-api-version": "2022-11-28",
+        ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
+        ...(init.body ? { "content-type": "application/json" } : {}),
+        ...init.headers,
+      },
+    });
+    const body = await readBody(response);
+    if (!response.ok) githubError(response, body);
+    return { body: body as T, response };
   };
 
   const get = async (id: string, signal?: AbortSignal): Promise<WorkItem> => {
