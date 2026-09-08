@@ -199,7 +199,13 @@ function mapWorkItem(
   const typeName = field<string>(item, "System.WorkItemType") ?? "Other";
   const assignedTo = field<AzureIdentity>(item, "System.AssignedTo");
   const priorityValue = Number(field<number | string>(item, "Microsoft.VSTS.Common.Priority"));
-  const teamProject = field<string>(item, "System.TeamProject") ?? project;
+  const teamProject = field<string>(item, "System.TeamProject");
+  if (!teamProject || teamProject.toLowerCase() !== project.toLowerCase()) {
+    throw new WorkAuthorizationError("Azure DevOps work item is outside the configured project", {
+      provider: "azure-devops",
+      details: { configured: project, received: teamProject },
+    });
+  }
   const description = field<string>(item, "System.Description");
   const parent = parentId(item);
   const htmlUrl = item._links?.html?.href ?? `https://dev.azure.com/${encodeURIComponent(organization)}/${encodeURIComponent(project)}/_workitems/edit/${item.id}`;
@@ -468,23 +474,23 @@ export function azureDevOpsWorkAdapter(options: AzureDevOpsWorkAdapterOptions): 
 
     async update(id, input, callOptions) {
       throwIfAborted(callOptions?.signal);
-      const needsCurrent = input.parentId !== undefined || input.description === null || input.priority === "none" || input.assigneeIds?.length === 0;
-      const current = needsCurrent ? await getRaw(id, callOptions?.signal) : undefined;
-      const patch: JsonPatchOperation[] = [];
-      if (callOptions?.expectedRevision !== undefined) {
-        const revision = Number(callOptions.expectedRevision);
-        if (!Number.isInteger(revision) || revision < 1) throw new WorkValidationError("expectedRevision must be an Azure DevOps revision number", { provider: "azure-devops", details: { expectedRevision: callOptions.expectedRevision } });
-        patch.push({ op: "test", path: "/rev", value: revision });
-      }
-      patch.push(...patchFor(input, current));
+      const expectedRevision = callOptions?.expectedRevision === undefined ? undefined : Number(callOptions.expectedRevision);
+      if (expectedRevision !== undefined && (!Number.isInteger(expectedRevision) || expectedRevision < 1)) throw new WorkValidationError("expectedRevision must be an Azure DevOps revision number", { provider: "azure-devops", details: { expectedRevision: callOptions?.expectedRevision } });
+      if (input.assigneeIds && input.assigneeIds.length > 1) throw new WorkValidationError("Azure DevOps supports one assignee per work item", { provider: "azure-devops", details: { field: "assigneeIds" } });
+      const current = await getRaw(id, callOptions?.signal);
+      const currentItem = mapWorkItem(current, organization, project, states, kinds);
+      const patch: JsonPatchOperation[] = [{ op: "test", path: "/fields/System.TeamProject", value: field(current, "System.TeamProject") }];
+      if (expectedRevision !== undefined) patch.push({ op: "test", path: "/rev", value: expectedRevision });
+      const changes = patchFor(input, current);
+      patch.push(...changes);
       if (patch.every((operation) => operation.op === "test")) {
-        if (!current) throw new WorkValidationError("Update must contain at least one changed field", { provider: "azure-devops" });
+        const canBeNoOp = input.parentId !== undefined || input.description === null || input.priority === "none" || input.assigneeIds?.length === 0;
+        if (!canBeNoOp) throw new WorkValidationError("Update must contain at least one changed field", { provider: "azure-devops" });
         if (callOptions?.expectedRevision !== undefined && String(current.rev) !== callOptions.expectedRevision) {
           throw new WorkConflictError("Azure DevOps work item changed before the no-op update", { provider: "azure-devops", details: { expected: callOptions.expectedRevision, actual: String(current.rev) } });
         }
-        const item = mapWorkItem(current, organization, project, states, kinds);
-        verifyApplied(item, input);
-        return item;
+        verifyApplied(currentItem, input);
+        return currentItem;
       }
       const raw = await request<AzureWorkItem>(`/_apis/wit/workitems/${encodeURIComponent(id)}?$expand=relations&api-version=7.1`, {
         method: "PATCH",
@@ -500,6 +506,7 @@ export function azureDevOpsWorkAdapter(options: AzureDevOpsWorkAdapterOptions): 
     async addComment(id, input: AddCommentInput, callOptions) {
       throwIfAborted(callOptions?.signal);
       if (!input.body.trim()) throw new WorkValidationError("body must not be empty", { provider: "azure-devops" });
+      mapWorkItem(await getRaw(id, callOptions?.signal), organization, project, states, kinds);
       const comment = await request<AzureComment>(`/_apis/wit/workItems/${encodeURIComponent(id)}/comments?format=markdown&api-version=7.1-preview.4`, {
         method: "POST", body: JSON.stringify({ text: input.body }), ...(callOptions?.signal ? { signal: callOptions.signal } : {}),
       });
