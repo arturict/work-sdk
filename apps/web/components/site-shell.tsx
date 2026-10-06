@@ -31,24 +31,34 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <div className="shell footer-grid">
-        <div>
+        <div className="footer-brand">
           <Link aria-label="Work SDK home" className="brand" href="/">
             <LogoMark size={24} />
             <span>Work SDK</span>
           </Link>
           <p className="footer-note">The safe write layer for coding agents.</p>
+          <p className="footer-status"><span aria-hidden="true" className="footer-status-dot" />v0.6 · Node.js 20+ · 0 runtime deps</p>
         </div>
-        <div className="footer-links" aria-label="Project links">
-          <Link href="/docs">Documentation</Link>
-          <Link href="/docs/getting-started">Quickstart</Link>
-          <Link href="/docs/examples">Examples</Link>
-          <Link href="/docs/providers">Providers</Link>
-          <Link href="/guides/agent-safe-work-tracker-writes">Safety guide</Link>
-          <Link href="/privacy">Analytics & privacy</Link>
-          <a href="/go/github?from=footer">Source</a>
-          <a href="/go/npm?from=footer">npm</a>
-          <a href="/llms.txt">llms.txt</a>
-        </div>
+        <nav className="footer-links" aria-label="Project links">
+          <div>
+            <p>Learn</p>
+            <Link href="/docs">Documentation</Link>
+            <Link href="/docs/getting-started">Quickstart</Link>
+            <Link href="/docs/examples">Examples</Link>
+            <Link href="/guides/agent-safe-work-tracker-writes">Safety guide</Link>
+          </div>
+          <div>
+            <p>Adapters</p>
+            <Link href="/docs/providers">Providers</Link>
+            <a href="/llms.txt">llms.txt</a>
+            <Link href="/privacy">Analytics & privacy</Link>
+          </div>
+          <div>
+            <p>Project</p>
+            <a href="/go/github?from=footer">Source</a>
+            <a href="/go/npm?from=footer">npm</a>
+          </div>
+        </nav>
         <p className="footer-legal">Open source under the MIT License.</p>
       </div>
     </footer>

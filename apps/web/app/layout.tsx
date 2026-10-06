@@ -1,12 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { RootProvider } from "fumadocs-ui/provider/next";
+import { Geist, Geist_Mono } from "next/font/google";
 
 import { SiteAnalytics } from "@/components/site-analytics";
 import { SiteFooter, SiteHeader } from "@/components/site-shell";
 import { discoveryAlternates, site } from "@/lib/site";
 
 import "./globals.css";
+
+const sans = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const mono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -66,12 +70,12 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "dark",
-  themeColor: "#080a09",
+  themeColor: "#070a18",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={`dark ${sans.variable} ${mono.variable}`}>
       <body>
         <RootProvider theme={{ enabled: false }}>
           <a className="skip-link" href="#main-content">

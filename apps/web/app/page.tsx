@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BrandLogo } from "@/components/brand-logo";
+import { ControlPlane } from "@/components/control-plane";
 import { ArrowIcon, CheckIcon, LayersIcon, RefreshIcon, ShieldIcon, TerminalIcon } from "@/components/icons";
 import { LandingAnalytics } from "@/components/landing-analytics";
 import { Workbench } from "@/components/workbench";
@@ -31,6 +32,14 @@ const capabilityRows = [
   ["Custom states", false, false, true, true, true],
   ["Multiple assignees", true, false, false, false, false],
   ["Atomic update guard", false, false, false, false, true],
+] as const;
+
+const matrixProviders = [
+  { brand: "github", label: "GitHub" },
+  { brand: "gitlab", label: "GitLab" },
+  { brand: "linear", label: "Linear" },
+  { brand: "jira", label: "Jira" },
+  { brand: "azure-devops", label: "Azure" },
 ] as const;
 
 export default function HomePage() {
@@ -92,50 +101,41 @@ export default function HomePage() {
     ],
   };
 
+
   return (
     <main id="main-content">
       <LandingAnalytics />
       <script dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} type="application/ld+json" />
 
-      <section className="hero hero-centered shell" id="hero">
+      <section className="hero shell" id="hero">
         <div className="hero-copy">
-          <h1>Work across trackers.<br /><span>Keep one safe API.</span></h1>
-          <p className="hero-summary">
-            One typed TypeScript SDK for GitHub, GitLab, Linear, Jira, and Azure DevOps. Preview the exact change, coordinate retries, then commit with an explicit receipt.
-          </p>
-          <div className="hero-actions">
-            <Link className="button primary" href="/docs/getting-started" data-analytics-action="start-building" data-analytics-event="landing-cta" data-analytics-location="hero" data-analytics-target="docs">Start building <ArrowIcon /></Link>
-            <a className="button secondary" href="/go/github?from=hero" data-analytics-action="browse-source" data-analytics-event="landing-cta" data-analytics-location="hero" data-analytics-target="github">Browse source</a>
+          <div className="hero-heading">
+            <p className="hero-tag"><span className="hero-tag-dot" aria-hidden="true" />Open source · MIT · v0.6</p>
+            <h1>Work across trackers.<br /><span>Keep one safe API.</span></h1>
           </div>
-          <dl className="hero-metrics" aria-label="Project quality">
-            <div><dt>5</dt><dd>adapters</dd></div>
-            <div><dt>211</dt><dd>tests</dd></div>
-            <div><dt>0</dt><dd>runtime deps</dd></div>
-          </dl>
+          <div className="hero-side">
+            <p className="hero-summary">
+              One typed TypeScript SDK for GitHub, GitLab, Linear, Jira, and Azure DevOps. Preview the exact change, coordinate retries, then commit with an explicit receipt.
+            </p>
+            <div className="hero-actions">
+              <Link className="button primary" href="/docs/getting-started" data-analytics-action="start-building" data-analytics-event="landing-cta" data-analytics-location="hero" data-analytics-target="docs">Start building <ArrowIcon /></Link>
+              <a className="button secondary" href="/go/github?from=hero" data-analytics-action="browse-source" data-analytics-event="landing-cta" data-analytics-location="hero" data-analytics-target="github">Browse source</a>
+            </div>
+            <dl className="hero-metrics" aria-label="Project quality">
+              <div><dt>5</dt><dd>adapters</dd></div>
+              <div><dt>211</dt><dd>tests</dd></div>
+              <div><dt>0</dt><dd>runtime deps</dd></div>
+            </dl>
+          </div>
         </div>
-        <div aria-hidden="true" className="terrain">
-          <svg viewBox="0 0 1200 360" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="terrain-fill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor="#6673ff" stopOpacity=".34" />
-                <stop offset=".55" stopColor="#202633" stopOpacity=".58" />
-                <stop offset="1" stopColor="#080a09" stopOpacity="0" />
-              </linearGradient>
-              <filter id="terrain-glow"><feGaussianBlur stdDeviation="18" /></filter>
-            </defs>
-            <path className="terrain-glow" d="M0 336 170 250 285 290 470 118 550 214 668 96 760 225 885 145 990 240 1200 126V360H0Z" />
-            <path className="terrain-fill" d="M0 336 170 250 285 290 470 118 550 214 668 96 760 225 885 145 990 240 1200 126V360H0Z" />
-            <path className="terrain-line" d="m0 336 170-86 115 40 185-172 80 96 118-118 92 129 125-80 105 95 210-114" />
-            <path className="terrain-line subtle" d="m72 346 130-70 100 38 170-143 77 76 122-105 88 115 137-73 103 85 148-87" />
-          </svg>
-        </div>
+        <ControlPlane />
       </section>
 
       <section aria-labelledby="providers-title" className="provider-strip" id="providers">
         <div className="shell provider-strip-inner">
           <p id="providers-title">One normalized model for</p>
-          <div className="provider-list"><span><BrandLogo brand="github" /> GitHub Issues</span><span><BrandLogo brand="gitlab" /> GitLab</span><span><BrandLogo brand="linear" /> Linear</span><span><BrandLogo brand="jira" /> Jira</span><span><BrandLogo brand="azure-devops" /> Azure DevOps</span></div>
-          <p className="provider-note"><Link href="/docs/providers">Compare providers</Link></p>
+          <div className="provider-list"><span><BrandLogo brand="github" inverse /> GitHub Issues</span><span><BrandLogo brand="gitlab" /> GitLab</span><span><BrandLogo brand="linear" /> Linear</span><span><BrandLogo brand="jira" /> Jira</span><span><BrandLogo brand="azure-devops" /> Azure DevOps</span></div>
+          <p className="provider-note"><Link href="/docs/providers">Compare providers <ArrowIcon /></Link></p>
         </div>
       </section>
 
@@ -148,16 +148,93 @@ export default function HomePage() {
         <Workbench />
       </section>
 
+      <section className="section workflow-section" id="workflow">
+        <div className="shell">
+          <div className="section-heading centered">
+            <p className="kicker">A safer primitive</p>
+            <h2>Prepare. Inspect. Commit.</h2>
+            <p>Turn an irreversible API call into a change you can reason about, approve, log, and replay.</p>
+          </div>
+          <ol className="workflow-grid">
+            <li><div className="step-head"><span className="step-icon"><TerminalIcon /></span><span className="step-label">01 / Prepare</span></div><h3>Build a change plan</h3><p>Fetch current state, normalize provider semantics, and calculate the exact diff.</p><code>work.prepareUpdate(…)</code></li>
+            <li><div className="step-head"><span className="step-icon"><LayersIcon /></span><span className="step-label">02 / Inspect</span></div><h3>See what will happen</h3><p>Review field changes, lossy mappings, unsupported capabilities, and expected revision.</p><code>change.warnings</code></li>
+            <li><div className="step-head"><span className="step-icon"><ShieldIcon /></span><span className="step-label">03 / Commit</span></div><h3>Commit with a receipt</h3><p>Verify the plan, atomically claim the business key, check the revision, then record or reconcile the outcome.</p><code>work.commit(change)</code></li>
+          </ol>
+        </div>
+      </section>
+
+      <section className="section shell features-section" id="features">
+        <div className="section-heading">
+          <p className="kicker">Small API, serious guarantees</p>
+          <h2>Infrastructure for trustworthy agent actions.</h2>
+        </div>
+        <div className="feature-grid">
+          <article className="feature-large">
+            <div className="feature-copy"><ShieldIcon /><h3>Integrity-checked changes</h3><p>A prepared change carries a fingerprint. Mutate it after inspection and the SDK rejects the commit.</p></div>
+            <div className="fragment" aria-label="Example prepared change and rejected mutation">
+              <div className="fragment-bar"><span>PreparedWorkChange</span><span>acme/api#481</span></div>
+              <div className="fragment-diff">
+                <p className="del"><span>−</span><b>state</b>open</p>
+                <p className="ins"><span>+</span><b>state</b>closed</p>
+                <p className="meta"><span /> <b>fingerprint</b>9c2e41d0…7af3</p>
+              </div>
+              <div className="fragment-alert"><span className="fragment-alert-dot" aria-hidden="true" /><code>WorkValidationError</code><span>Prepared change was modified after preparation</span></div>
+            </div>
+          </article>
+          <article>
+            <RefreshIcon /><h3>Atomic retry coordination</h3><p>Only one worker claims an intent. Uncertain provider outcomes become explicit errors instead of blind retries.</p>
+            <div className="fragment fragment-receipt" aria-label="Example replayed commit receipt">
+              <div className="fragment-bar"><span>CommitResult</span><span className="fragment-pill">replay</span></div>
+              <dl><div><dt>action</dt><dd>&quot;update&quot;</dd></div><div><dt>replayed</dt><dd className="on">true</dd></div><div><dt>key</dt><dd>merge:api#481</dd></div></dl>
+            </div>
+          </article>
+          <article>
+            <LayersIcon /><h3>Capability discovery</h3><p>Check support instead of asking an agent to guess.</p>
+            <div className="fragment fragment-receipt" aria-label="Example Azure DevOps capabilities">
+              <div className="fragment-bar"><span>azureDevOps.capabilities</span></div>
+              <dl><div><dt>customStates</dt><dd className="on">true</dd></div><div><dt>concurrency.update</dt><dd>&quot;atomic&quot;</dd></div><div><dt>multipleAssignees</dt><dd className="off">false</dd></div></dl>
+            </div>
+          </article>
+          <article>
+            <TerminalIcon /><h3>Normalized errors</h3><p>Handle auth, rate limits, conflicts, and unsupported fields consistently.</p>
+            <ul className="fragment fragment-errors" aria-label="Example normalized error classes">
+              <li><code>WorkConflictError</code><span>conflict</span></li>
+              <li><code>WorkRateLimitError</code><span>rate_limit</span></li>
+              <li><code>WorkAmbiguousCommitError</code><span>ambiguous</span></li>
+            </ul>
+          </article>
+          <article className="feature-typed">
+            <CheckIcon /><h3>Strictly typed</h3><p>ESM and CommonJS builds, zero runtime dependencies, Node.js 20+.</p>
+            <dl className="typed-stats"><div><dt>0</dt><dd>runtime deps</dd></div><div><dt>211</dt><dd>tests</dd></div><div><dt>20+</dt><dd>Node.js</dd></div></dl>
+          </article>
+        </div>
+      </section>
+
       <section className="section shell problem-section" id="problem">
         <div className="section-heading">
-          <p className="kicker">Built for real side effects</p>
+          <p className="kicker">Incidents prevented</p>
           <h2>Agents can write code.<br />Trackers still make them guess.</h2>
           <p>Provider APIs disagree on states, identities, revisions, rich text, and error shapes. Work SDK puts those differences behind a typed, inspectable boundary.</p>
         </div>
         <div className="failure-grid">
-          <article><span className="failure-index">01</span><h3>Wrong transition</h3><p>“Done” can mean a state, transition ID, or a closed flag. Resolve intent against the provider before writing.</p></article>
-          <article><span className="failure-index">02</span><h3>Duplicate comment</h3><p>A timeout does not say whether a write succeeded. Atomic claims block concurrent duplicates; ambiguous outcomes stop retries for reconciliation.</p></article>
-          <article><span className="failure-index">03</span><h3>Stale overwrite</h3><p>An item can change between read and write. Revision checks stop agents from erasing newer work.</p></article>
+          <article>
+            <div className="incident-head"><span className="failure-index">INC-01</span><span className="incident-status">Prevented</span></div>
+            <h3>Wrong transition</h3>
+            <p>“Done” can mean a state, transition ID, or a closed flag. Resolve intent against the provider before writing.</p>
+            <div className="incident-trace"><span>state: &quot;done&quot;</span><span className="incident-arrow" aria-hidden="true">→</span><span className="ok">Jira transition 31</span></div>
+          </article>
+          <article>
+            <div className="incident-head"><span className="failure-index">INC-02</span><span className="incident-status">Prevented</span></div>
+            <h3>Duplicate comment</h3>
+            <p>A timeout does not say whether a write succeeded. Atomic claims block concurrent duplicates; ambiguous outcomes stop retries for reconciliation.</p>
+            <div className="incident-trace"><span>retry · same key</span><span className="incident-arrow" aria-hidden="true">→</span><span className="warn">WorkInFlightError</span></div>
+          </article>
+          <article>
+            <div className="incident-head"><span className="failure-index">INC-03</span><span className="incident-status">Prevented</span></div>
+            <h3>Stale overwrite</h3>
+            <p>An item can change between read and write. Revision checks stop agents from erasing newer work.</p>
+            <div className="incident-trace"><span>expected rev 7</span><span className="incident-arrow" aria-hidden="true">→</span><span className="warn">WorkConflictError</span></div>
+          </article>
         </div>
       </section>
 
@@ -172,35 +249,6 @@ export default function HomePage() {
         </Link>
       </section>
 
-      <section className="section workflow-section" id="workflow">
-        <div className="shell">
-          <div className="section-heading centered">
-            <p className="kicker">A safer primitive</p>
-            <h2>Prepare. Inspect. Commit.</h2>
-            <p>Turn an irreversible API call into a change you can reason about, approve, log, and replay.</p>
-          </div>
-          <div className="workflow-grid">
-            <article><div className="step-icon"><TerminalIcon /></div><span>01 / PREPARE</span><h3>Build a change plan</h3><p>Fetch current state, normalize provider semantics, and calculate the exact diff.</p><code>work.prepareUpdate(…)</code></article>
-            <article><div className="step-icon"><LayersIcon /></div><span>02 / INSPECT</span><h3>See what will happen</h3><p>Review field changes, lossy mappings, unsupported capabilities, and expected revision.</p><code>change.warnings</code></article>
-            <article><div className="step-icon"><ShieldIcon /></div><span>03 / COMMIT</span><h3>Commit with a receipt</h3><p>Verify the plan and revision, atomically claim the business key, then record or reconcile the outcome.</p><code>work.commit(change)</code></article>
-          </div>
-        </div>
-      </section>
-
-      <section className="section shell features-section" id="features">
-        <div className="section-heading">
-          <p className="kicker">Small API, serious guarantees</p>
-          <h2>Infrastructure for trustworthy agent actions.</h2>
-        </div>
-        <div className="feature-grid">
-          <article className="feature-large"><ShieldIcon /><h3>Integrity-checked changes</h3><p>A prepared change carries a fingerprint. Mutate it after inspection and the SDK rejects the commit.</p><div className="mini-code"><span>if</span> (fingerprint !== expected) <strong>throw</strong> WorkValidationError</div></article>
-          <article><RefreshIcon /><h3>Atomic retry coordination</h3><p>Only one worker claims an intent. Uncertain provider outcomes become explicit errors instead of blind retries.</p></article>
-          <article><LayersIcon /><h3>Capability discovery</h3><p>Check support instead of asking an agent to guess.</p></article>
-          <article><TerminalIcon /><h3>Normalized errors</h3><p>Handle auth, rate limits, conflicts, and unsupported fields consistently.</p></article>
-          <article><CheckIcon /><h3>Strictly typed</h3><p>ESM and CommonJS builds, zero runtime dependencies, Node.js 20+.</p></article>
-        </div>
-      </section>
-
       <section className="section capability-section" id="adapters">
         <div className="shell capability-layout">
           <div className="section-heading">
@@ -210,11 +258,12 @@ export default function HomePage() {
             <Link className="text-link" href="/docs/providers">Explore adapter docs <ArrowIcon /></Link>
           </div>
           <div className="table-wrap">
-            <table>
+            <table className="matrix">
               <caption className="sr-only">Work SDK provider capability comparison</caption>
-              <thead><tr><th scope="col">Capability</th><th scope="col"><span className="provider-heading"><BrandLogo brand="github" />GitHub</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="gitlab" />GitLab</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="linear" />Linear</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="jira" />Jira</span></th><th scope="col"><span className="provider-heading"><BrandLogo brand="azure-devops" />Azure</span></th></tr></thead>
-              <tbody>{capabilityRows.map(([label, ...values]) => <tr key={label}><th scope="row">{label}</th>{values.map((value, index) => <td key={index}>{value ? <span className="table-yes"><CheckIcon /><span className="sr-only">Supported</span></span> : <span className="table-no" aria-label="Limited">—</span>}</td>)}</tr>)}</tbody>
+              <thead><tr><th scope="col">Capability</th>{matrixProviders.map((provider) => <th key={provider.brand} scope="col"><span className="provider-heading"><BrandLogo brand={provider.brand} inverse={provider.brand === "github"} /><span>{provider.label}</span></span></th>)}</tr></thead>
+              <tbody>{capabilityRows.map(([label, ...values]) => <tr key={label}><th scope="row">{label}</th>{values.map((value, index) => <td key={index}>{value ? <span className="matrix-dot on"><span className="sr-only">Supported</span></span> : <span className="matrix-dot off"><span className="sr-only">Limited</span></span>}</td>)}</tr>)}</tbody>
             </table>
+            <p className="matrix-legend"><span><i className="matrix-dot on" aria-hidden="true" />Supported</span><span><i className="matrix-dot off" aria-hidden="true" />Limited or not available</span></p>
           </div>
         </div>
       </section>
@@ -232,8 +281,11 @@ export default function HomePage() {
 
       <section className="final-cta" id="final-cta">
         <div className="shell final-cta-inner">
-          <div><p className="kicker">Give agents a safer tool</p><h2>Ship work, not side effects.</h2><p>Start with one provider. Keep one API when your stack changes.</p></div>
-          <div className="hero-actions"><Link className="button inverted" href="/docs/getting-started" data-analytics-action="get-started" data-analytics-event="landing-cta" data-analytics-location="final" data-analytics-target="docs">Get started <ArrowIcon /></Link><a className="button ghost-dark" href="/go/github?from=home-final" data-analytics-action="star-github" data-analytics-event="landing-cta" data-analytics-location="final" data-analytics-target="github">Star on GitHub</a></div>
+          <div className="final-cta-copy"><p className="kicker">Give agents a safer tool</p><h2>Ship work,<br />not side effects.</h2><p>Start with one provider. Keep one API when your stack changes.</p></div>
+          <div className="final-cta-side">
+            <div className="final-cta-install" aria-label="Install command"><span className="prompt">$</span> npm i work-sdk</div>
+            <div className="hero-actions"><Link className="button inverted" href="/docs/getting-started" data-analytics-action="get-started" data-analytics-event="landing-cta" data-analytics-location="final" data-analytics-target="docs">Get started <ArrowIcon /></Link><a className="button ghost-dark" href="/go/github?from=home-final" data-analytics-action="star-github" data-analytics-event="landing-cta" data-analytics-location="final" data-analytics-target="github">Star on GitHub</a></div>
+          </div>
         </div>
       </section>
     </main>
